@@ -49,4 +49,4 @@ tmp
 # Management keys (never commit private keys)
 etc/mgmt/*
 !etc/mgmt/README.md
-pub
+/pub
