@@ -17,16 +17,19 @@
 package zmq
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/lf-edge/ekuiper/contract/v2/api"
-	zmq "github.com/pebbe/zmq4"
+	zmq "github.com/go-zeromq/zmq4"
 
 	"github.com/lf-edge/ekuiper/v2/pkg/errorx"
 )
 
 type zmqSink struct {
-	publisher *zmq.Socket
+	ctx       context.Context
+	cancel    context.CancelFunc
+	publisher zmq.Socket
 	sc        *c
 }
 
@@ -47,12 +50,17 @@ func (m *zmqSink) Connect(ctx api.StreamContext, sch api.StatusChangeHandler) (e
 			sch(api.ConnectionConnected, "")
 		}
 	}()
-	m.publisher, err = zmq.NewSocket(zmq.PUB)
-	if err != nil {
-		return fmt.Errorf("zmq sink fails to create socket: %v", err)
+	ctx2, cancel := context.WithCancel(context.Background())
+	m.ctx = ctx2
+	m.cancel = cancel
+	m.publisher = zmq.NewPub(ctx2, zmq.WithDialerMaxRetries(-1))
+	if m.publisher == nil {
+		cancel()
+		return fmt.Errorf("zmq sink fails to create socket")
 	}
-	err = m.publisher.Bind(m.sc.Server)
+	err = m.publisher.Listen(m.sc.Server)
 	if err != nil {
+		cancel()
 		return fmt.Errorf("zmq sink fails to bind to %s: %v", m.sc.Server, err)
 	}
 	ctx.GetLogger().Debugf("zmq sink open")
@@ -66,13 +74,13 @@ func (m *zmqSink) Collect(ctx api.StreamContext, item api.RawTuple) error {
 func (m *zmqSink) sendToZmq(ctx api.StreamContext, v []byte) error {
 	var err error
 	if m.sc.Topic2 == "" {
-		_, err = m.publisher.SendBytes(v, 0)
+		err = m.publisher.Send(zmq.NewMsg(v))
 	} else {
 		msgs := [][]byte{
 			[]byte(m.sc.Topic),
 			v,
 		}
-		_, err = m.publisher.SendMessage(msgs)
+		err = m.publisher.SendMulti(zmq.NewMsgFrom(msgs...))
 	}
 	if err != nil {
 		ctx.GetLogger().Errorf("send to zmq error %v", err)
@@ -83,6 +91,9 @@ func (m *zmqSink) sendToZmq(ctx api.StreamContext, v []byte) error {
 
 func (m *zmqSink) Close(_ api.StreamContext) error {
 	if m.publisher != nil {
+		if m.cancel != nil {
+			m.cancel()
+		}
 		return m.publisher.Close()
 	}
 	return nil

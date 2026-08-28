@@ -15,26 +15,33 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
-	zmq "github.com/pebbe/zmq4"
+	zmq "github.com/go-zeromq/zmq4"
 )
 
 type zmqPub struct {
-	publisher *zmq.Socket
+	ctx       context.Context
+	cancel    context.CancelFunc
+	publisher zmq.Socket
 	srv       string
 	topic     string
 }
 
 func (m *zmqPub) Open() (err error) {
-	m.publisher, err = zmq.NewSocket(zmq.PUB)
-	if err != nil {
-		return fmt.Errorf("zmq sink fails to create socket: %v", err)
+	ctx2, cancel := context.WithCancel(context.Background())
+	m.ctx = ctx2
+	m.cancel = cancel
+	m.publisher = zmq.NewPub(ctx2, zmq.WithDialerMaxRetries(-1))
+	if m.publisher == nil {
+		cancel()
+		return fmt.Errorf("zmq sink fails to create socket")
 	}
-	err = m.publisher.Bind(m.srv)
+	err = m.publisher.Listen(m.srv)
 	if err != nil {
 		return fmt.Errorf("zmq sink fails to bind to %s: %v", m.srv, err)
 	}
@@ -46,13 +53,13 @@ func (m *zmqPub) Send(item interface{}) (err error) {
 	if v, ok := item.([]byte); ok {
 		fmt.Printf("To pub: %s \n", item)
 		if m.topic == "" {
-			_, err = m.publisher.Send(string(v), 0)
+			err = m.publisher.Send(zmq.NewMsg(v))
 		} else {
-			msgs := []string{
-				m.topic,
-				string(v),
+			msgs := [][]byte{
+				[]byte(m.topic),
+				v,
 			}
-			_, err = m.publisher.SendMessage(msgs)
+			err = m.publisher.SendMulti(zmq.NewMsgFrom(msgs...))
 		}
 	} else {
 		fmt.Printf("zmq sink receive non byte data %v \n", item)
@@ -65,6 +72,9 @@ func (m *zmqPub) Send(item interface{}) (err error) {
 
 func (m *zmqPub) Close() error {
 	if m.publisher != nil {
+		if m.cancel != nil {
+			m.cancel()
+		}
 		return m.publisher.Close()
 	}
 	return nil

@@ -17,20 +17,21 @@
 package zmq
 
 import (
+	"context"
+	"errors"
 	"fmt"
-	"syscall"
-	"time"
 
 	"github.com/lf-edge/ekuiper/contract/v2/api"
-	zmq "github.com/pebbe/zmq4"
+	zmq "github.com/go-zeromq/zmq4"
 
 	"github.com/lf-edge/ekuiper/v2/pkg/infra"
 	"github.com/lf-edge/ekuiper/v2/pkg/timex"
 )
 
 type zmqSource struct {
-	subscriber *zmq.Socket
-	zctx       *zmq.Context
+	ctx        context.Context
+	cancel     context.CancelFunc
+	subscriber zmq.Socket
 	sc         *c
 }
 
@@ -52,18 +53,17 @@ func (s *zmqSource) Connect(ctx api.StreamContext, sch api.StatusChangeHandler) 
 			sch(api.ConnectionConnected, "")
 		}
 	}()
-	// Create a new ZeroMQ context
-	zctx, err := zmq.NewContext()
-	if err != nil {
-		return fmt.Errorf("zmq source fails to create context: %v", err)
+	ctx2, cancel := context.WithCancel(context.Background())
+	s.ctx = ctx2
+	s.cancel = cancel
+	s.subscriber = zmq.NewSub(ctx2, zmq.WithDialerMaxRetries(-1))
+	if s.subscriber == nil {
+		cancel()
+		return fmt.Errorf("zmq source fails to create socket")
 	}
-	s.zctx = zctx
-	s.subscriber, err = zctx.NewSocket(zmq.SUB)
+	err = s.subscriber.Dial(s.sc.Server)
 	if err != nil {
-		return fmt.Errorf("zmq source fails to create socket: %v", err)
-	}
-	err = s.subscriber.Connect(s.sc.Server)
-	if err != nil {
+		cancel()
 		return fmt.Errorf("zmq source fails to connect to %s: %v", s.sc.Server, err)
 	}
 	return nil
@@ -71,42 +71,42 @@ func (s *zmqSource) Connect(ctx api.StreamContext, sch api.StatusChangeHandler) 
 
 func (s *zmqSource) Subscribe(ctx api.StreamContext, ingest api.BytesIngest, ingestError api.ErrorIngest) error {
 	ctx.GetLogger().Debugf("zmq source subscribe to topic %s", s.sc.Topic)
-	err := s.subscriber.SetSubscribe(s.sc.Topic)
-	if err != nil {
-		return err
-	}
-	err = s.subscriber.SetRcvtimeo(time.Second)
-	if err != nil {
-		return err
+	if s.sc.Topic != "" {
+		err := s.subscriber.SetOption(zmq.OptionSubscribe, s.sc.Topic)
+		if err != nil {
+			return err
+		}
 	}
 	go infra.SafeRun(func() error {
 		for {
-			msgs, e := s.subscriber.RecvMessageBytes(0)
+			msg, e := s.subscriber.Recv()
 			if e != nil {
-				if zmq.AsErrno(e) == zmq.Errno(syscall.EAGAIN) {
-					continue
+				if errors.Is(e, context.Canceled) || s.ctx.Err() != nil {
+					_ = s.subscriber.Close()
+					return nil
 				}
-				id, _ := s.subscriber.GetIdentity()
-				ingestError(ctx, fmt.Errorf("zmq source getting message %s error: %v", id, zmq.AsErrno(e)))
+				ingestError(ctx, fmt.Errorf("zmq source getting message error: %v", e))
 			} else {
 				rcvTime := timex.GetNow()
 				var m []byte
-				for i, msg := range msgs {
+				for i, f := range msg.Frames {
 					if i == 0 && s.sc.Topic != "" {
 						continue
 					}
-					m = append(m, msg...)
+					m = append(m, f...)
 				}
 				meta := make(map[string]any)
-				if s.sc.Topic != "" {
-					meta["topic"] = string(msgs[0])
+				if s.sc.Topic != "" && len(msg.Frames) > 0 {
+					meta["topic"] = string(msg.Frames[0])
 				}
 				ingest(ctx, m, meta, rcvTime)
 			}
 			select {
 			case <-ctx.Done():
-				s.subscriber.Close()
-				s.zctx.Term()
+				_ = s.subscriber.Close()
+				if s.cancel != nil {
+					s.cancel()
+				}
 				return nil
 			default:
 			}

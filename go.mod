@@ -30,6 +30,7 @@ require (
 	github.com/edgexfoundry/go-mod-messaging/v4 v4.0.1
 	github.com/gdexlab/go-render v1.0.1
 	github.com/go-sql-driver/mysql v1.8.1
+	github.com/go-zeromq/zmq4 v0.17.0
 	github.com/godror/godror v0.44.7
 	github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -61,7 +62,6 @@ require (
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/openziti/sdk-golang v1.5.3
 	github.com/parquet-go/parquet-go v0.23.0
-	github.com/pebbe/zmq4 v1.2.11
 	github.com/pingcap/failpoint v0.0.0-20240528011301-b51a646c7c86
 	github.com/prestodb/presto-go-client v0.0.0-20240426182841-905ac40a1783
 	github.com/prometheus/client_golang v1.21.0
@@ -140,6 +140,7 @@ require (
 	github.com/go-openapi/swag/typeutils v0.28.0 // indirect
 	github.com/go-openapi/swag/yamlutils v0.28.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
+	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
