@@ -184,15 +184,27 @@ func (c *Client) Publish(ctx api.StreamContext, topic string, qos byte, retained
 		Payload: payload,
 	}
 	if len(properties) > 0 {
-		props := make([]paho.UserProperty, 0, len(properties))
+		// Special MQTT v5 properties are mapped to the standard publish
+		// properties so that a reply can carry the request-response
+		// correlation data and response topic. Everything else is sent as
+		// a user property.
+		var corrData []byte
+		var respTopic string
+		var user []paho.UserProperty
 		for k, v := range properties {
-			props = append(props, paho.UserProperty{
-				Key:   k,
-				Value: v,
-			})
+			switch k {
+			case "correlationData":
+				corrData = []byte(v)
+			case "responseTopic":
+				respTopic = v
+			default:
+				user = append(user, paho.UserProperty{Key: k, Value: v})
+			}
 		}
 		msg.Properties = &paho.PublishProperties{
-			User: props,
+			CorrelationData: corrData,
+			ResponseTopic:   respTopic,
+			User:            user,
 		}
 	}
 	resp, err := c.cm.Publish(ctx, msg)
@@ -254,10 +266,24 @@ func (c *Client) ParseMsg(ctx api.StreamContext, msg any) ([]byte, map[string]an
 			"messageId": packet.PacketID,
 		}
 		var properties map[string]string
-		if packet.Properties != nil && len(packet.Properties.User) > 0 {
-			properties = make(map[string]string, len(packet.Properties.User))
-			for _, prop := range packet.Properties.User {
-				properties[prop.Key] = prop.Value
+		if packet.Properties != nil {
+			// Extract MQTT v5 request-response properties so that a downstream
+			// rule can correlate a reply: the caller publishes the response to
+			// ResponseTopic and echoes CorrelationData back.
+			if packet.Properties.ResponseTopic != "" {
+				meta["responseTopic"] = packet.Properties.ResponseTopic
+			}
+			if len(packet.Properties.CorrelationData) > 0 {
+				meta["correlationData"] = string(packet.Properties.CorrelationData)
+			}
+			if packet.Properties.ContentType != "" {
+				meta["contentType"] = packet.Properties.ContentType
+			}
+			if len(packet.Properties.User) > 0 {
+				properties = make(map[string]string, len(packet.Properties.User))
+				for _, prop := range packet.Properties.User {
+					properties[prop.Key] = prop.Value
+				}
 			}
 		}
 		return packet.Payload, meta, properties

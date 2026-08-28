@@ -14,6 +14,7 @@
 | headers | 是 | 要为 HTTP 请求设置的其它 HTTP 头。支持动态获取。 |
 | debugResp | 是 | 控制是否将响应信息打印到控制台中。 如果将其设置为 `true`，则打印响应。 如果设置为`false`
 ，则跳过打印日志。默认值为 `false`。 |
+| response | 是 | 响应回传配置，用于实现"请求-响应"网关闭环：HTTP 请求完成后，将响应体发布到指定的 MQTT 主题。配置项包括 `type`（目前仅支持 `mqtt`）与 `mqtt`（MQTT 回传配置）。详情请见[响应回传（请求-响应网关）](#响应回传请求-响应网关)。 |
 | certificationPath | 是 | 证书路径。可以为绝对路径，也可以为相对路径。如果指定的是相对路径，那么父目录为执行 `kuiperd`
 命令的路径。比如，如果你在 `/var/kuiper` 中运行 `bin/kuiperd` ，那么父目录为 `/var/kuiper`; 如果运行从 `/var/kuiper/bin`
 中运行`./kuiperd`，那么父目录为 `/var/kuiper/bin`。 |
@@ -181,3 +182,69 @@ Text mode
 ```
 
 本示例中，每10条记录将生成一个 CSV 文件上传。
+
+## 响应回传（请求-响应网关）
+
+`response` 配置项使得 REST sink 可以充当"请求-响应网关"的响应通道：当 HTTP 请求成功完成后，REST sink 会把 HTTP 响应体发布到配置的 MQTT 主题，从而把响应送回给请求方。该能力与 MQTT v5 的请求-响应机制（`ResponseTopic` / `CorrelationData` 属性）配合，可以搭建完整的请求转发与转换闭环。
+
+**配置结构**：
+
+| 属性名称                | 是否可选 | 说明                                                                                                  |
+|---------------------|------|-----------------------------------------------------------------------------------------------------|
+| response.type       | 否    | 回传类型，目前仅支持 `mqtt`。                                                                              |
+| response.mqtt       | 否    | MQTT 回传配置，具体属性如下。                                                                                  |
+| response.mqtt.server       | 否    | MQTT broker 地址，例如 `tcp://127.0.0.1:1883`。                                                             |
+| response.mqtt.protocolVersion | 是    | MQTT 协议版本：`3.1`、`3.1.1`、`4` 或 `5`。默认值为 `3.1.1`。                                                   |
+| response.mqtt.clientId      | 是    | MQTT 客户端 ID，默认自动生成。                                                                                  |
+| response.mqtt.username      | 是    | MQTT 用户名。                                                                                         |
+| response.mqtt.password      | 是    | MQTT 密码。                                                                                           |
+| response.mqtt.topic         | 否    | 回传主题，支持动态参数，例如 `{{.responseTopic}}`，可从规则输出中解析请求携带的响应主题。                                            |
+| response.mqtt.correlationData | 是    | 回传关联数据，支持动态参数，例如 `{{.correlationData}}`。当协议版本为 `5` 时，会写入 MQTT v5 标准的 `CorrelationData` 属性。             |
+| response.mqtt.qos           | 是    | MQTT QoS 级别，默认值为 `0`。                                                                               |
+| response.mqtt.retained      | 是    | 是否保留消息，默认值为 `false`。                                                                              |
+
+**工作原理**：
+
+1. 请求方（例如 MQTT v5 客户端）发布请求消息，消息的 `ResponseTopic` 属性声明了期望接收响应的主题。
+2. MQTT source 将 `ResponseTopic`、`CorrelationData` 等属性提取为元数据，规则通过 `meta()` 函数（例如 `meta(responseTopic)`）将其转为输出字段。
+3. 规则转换后，REST sink 以 HTTP 方式转发请求到目标服务。
+4. HTTP 请求成功后，REST sink 根据 `response` 配置，把 HTTP 响应体发布到 `response.mqtt.topic` 解析出的主题，并将关联数据一并回传。
+5. 请求方在其 `ResponseTopic` 上收到 HTTP 响应。
+
+**配置示例**：
+
+以下示例中，MQTT v5 客户端向 `device/commands` 主题发送请求（携带 `ResponseTopic` 与 `CorrelationData` 属性），规则将其转换为 HTTP POST 请求转发到目标 API，并把 HTTP 响应通过 MQTT 发布回请求方的 `ResponseTopic`。
+
+```json
+{
+  "id": "mqttHttpGateway",
+  "sql": "SELECT command, id, meta(responseTopic) AS responseTopic, meta(correlationData) AS correlationData FROM device/commands",
+  "actions": [
+    {
+      "rest": {
+        "url": "http://target-service/api/execute",
+        "method": "post",
+        "bodyType": "json",
+        "sendSingle": true,
+        "response": {
+          "type": "mqtt",
+          "mqtt": {
+            "server": "tcp://127.0.0.1:1883",
+            "protocolVersion": "5",
+            "topic": "{{.responseTopic}}",
+            "correlationData": "{{.correlationData}}",
+            "qos": 1
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+**注意事项**：
+
+- `response.mqtt.topic` 与 `response.mqtt.correlationData` 支持动态参数。要使用它们，需在规则的 SQL 中通过 `meta()` 函数（如 `meta(responseTopic)`)把 MQTT v5 请求属性暴露为输出字段，再以 `{{.字段名}}` 形式引用。
+- 仅有 HTTP 响应体非空时才会回传；HTTP 请求失败或返回非 2xx 状态码时不会回传。
+- 若请求方不携带 `ResponseTopic`，且 `topic` 未配置静态主题，回传会因主题为空而失败并记录错误日志。
+- 回传的 MQTT 连接按规则独立创建，规则停止时自动释放。

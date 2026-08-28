@@ -100,6 +100,39 @@ type RawConf struct {
 	Compression  string `json:"compression"` // Compression specifies the algorithms used to payload compression
 
 	DebugResp bool `json:"debugResp"`
+	// Response configures how to relay the HTTP response back to the caller.
+	// It enables a request-reply gateway pattern, e.g. an MQTT v5 request
+	// arrives, is forwarded as HTTP, and the HTTP response is published back
+	// to the MQTT response topic carried by the request.
+	Response *ResponseConf `json:"response,omitempty"`
+}
+
+// ResponseConf defines how to forward the HTTP response after a request
+// completes. Currently only MQTT relay is supported.
+type ResponseConf struct {
+	// Type of the response relay, currently only "mqtt" is supported
+	Type string `json:"type"`
+	// Mqtt settings used when Type is "mqtt"
+	Mqtt *ResponseMqttConf `json:"mqtt,omitempty"`
+}
+
+// ResponseMqttConf configures publishing the HTTP response to an MQTT topic.
+// The topic and correlationData support dynamic props, e.g. "{{.responseTopic}}"
+// and "{{.correlationData}}" resolved from the rule output, so a request's
+// MQTT v5 response topic / correlation data can be echoed back to the caller.
+type ResponseMqttConf struct {
+	Server   string `json:"server"`
+	ClientId string `json:"clientId"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	// ProtocolVersion of the MQTT connection, "3.1", "3.1.1", "4" or "5"
+	ProtocolVersion string `json:"protocolVersion"`
+	// Topic to publish the response to. Supports dynamic props.
+	Topic string `json:"topic"`
+	// CorrelationData echoed back to the caller. Supports dynamic props.
+	CorrelationData string `json:"correlationData,omitempty"`
+	Qos             byte   `json:"qos,omitempty"`
+	Retained        bool   `json:"retained,omitempty"`
 }
 
 const (

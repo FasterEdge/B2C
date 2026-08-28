@@ -15,14 +15,18 @@
 package http
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 
 	"github.com/lf-edge/ekuiper/contract/v2/api"
 	"github.com/pingcap/failpoint"
 
+	"github.com/lf-edge/ekuiper/v2/internal/io/mqtt"
+	"github.com/lf-edge/ekuiper/v2/pkg/connection"
 	"github.com/lf-edge/ekuiper/v2/pkg/errorx"
 )
 
@@ -32,7 +36,26 @@ type RestSink struct {
 	headerTemplates    map[string]restHeaderTemplate
 	hasHeaderTemplates bool
 	hasDynamicHeaders  bool
+	// responseMqtt is the optional MQTT publisher used to relay the HTTP
+	// response back to the caller (request-reply gateway pattern).
+	responseMqtt *responseMqttPublisher
 }
+
+// responseMqttPublisher publishes the HTTP response body to an MQTT topic.
+type responseMqttPublisher struct {
+	cw  *connection.ConnWrapper
+	cli *mqtt.Connection
+	// topicTemplate is the configured topic, supporting dynamic props like
+	// {{.responseTopic}}. It is resolved per message against the rule output.
+	topicTemplate string
+	corrTemplate  string
+	qos           byte
+	retained      bool
+}
+
+var (
+	_ api.BytesCollector = &RestSink{}
+)
 
 type restHeaderTemplate struct {
 	value        string
@@ -169,6 +192,9 @@ func deletePropFold(props map[string]any, name string) {
 }
 
 func (r *RestSink) Close(ctx api.StreamContext) error {
+	if r.responseMqtt != nil && r.responseMqtt.cw != nil {
+		_ = connection.DetachConnection(ctx, r.responseMqtt.cw.ID)
+	}
 	return nil
 }
 
@@ -176,6 +202,39 @@ func (r *RestSink) Connect(ctx api.StreamContext, sch api.StatusChangeHandler) e
 	err := r.Conn(ctx)
 	if err != nil {
 		return err
+	}
+	// If response relay is configured, establish the reply channel.
+	if r.config.Response != nil && r.config.Response.Mqtt != nil {
+		rc := r.config.Response.Mqtt
+		mqttProps := map[string]any{
+			"server":          rc.Server,
+			"protocolVersion": rc.ProtocolVersion,
+			"clientid":        rc.ClientId,
+			"username":        rc.Username,
+			"password":        rc.Password,
+		}
+		refId := fmt.Sprintf("%s-%s-rest-response", ctx.GetRuleId(), ctx.GetOpId())
+		cw, err := connection.FetchConnection(ctx, refId, "mqtt", mqttProps, sch)
+		if err != nil {
+			return fmt.Errorf("rest sink response mqtt: %v", err)
+		}
+		conn, e := cw.Wait(ctx)
+		if conn == nil {
+			return fmt.Errorf("rest sink response mqtt not ready: %v", e)
+		}
+		cli, ok := conn.(*mqtt.Connection)
+		if !ok {
+			return fmt.Errorf("rest sink response: connection is not mqtt")
+		}
+		r.responseMqtt = &responseMqttPublisher{
+			cw:            cw,
+			cli:           cli,
+			topicTemplate: rc.Topic,
+			corrTemplate:  rc.CorrelationData,
+			qos:           rc.Qos,
+			retained:      rc.Retained,
+		}
+		ctx.GetLogger().Debugf("rest sink response mqtt connected to %s", rc.Server)
 	}
 	sch(api.ConnectionConnected, "")
 	return nil
@@ -257,7 +316,20 @@ func (r *RestSink) Collect(ctx api.StreamContext, item api.RawTuple) error {
 			method, u)
 	} else {
 		logger.Debugf("rest sink got response %v", resp)
-		_, b, err := r.parseResponse(ctx, resp, "", r.config.DebugResp, true)
+		// When a response relay is configured, capture the raw response body
+		// first so it can be forwarded back to the caller, then restore the
+		// body for the normal parsing flow.
+		var relayBody []byte
+		if r.responseMqtt != nil && resp != nil && resp.Body != nil {
+			raw, readErr := io.ReadAll(resp.Body)
+			if readErr != nil {
+				logger.Warnf("rest sink failed to read response body for relay: %v", readErr)
+			} else {
+				relayBody = raw
+				resp.Body = io.NopCloser(bytes.NewReader(raw))
+			}
+		}
+		_, b, err := r.parseResponse(ctx, resp, "", r.config.DebugResp || r.responseMqtt != nil, true)
 		// do not record response body error as it is not an error in the sink action.
 		if err != nil && !strings.HasPrefix(err.Error(), BODY_ERR) {
 			if strings.HasPrefix(err.Error(), BODY_ERR) {
@@ -275,8 +347,39 @@ func (r *RestSink) Collect(ctx api.StreamContext, item api.RawTuple) error {
 		if r.config.DebugResp {
 			logger.Infof("Response raw content: %s\n", b)
 		}
+		// Relay the HTTP response back to the caller through the configured
+		// reply channel (request-reply gateway pattern).
+		if r.responseMqtt != nil && len(relayBody) > 0 {
+			if err := r.responseMqtt.Publish(ctx, item, relayBody); err != nil {
+				logger.Errorf("rest sink response relay failed: %v", err)
+				return errorx.NewIOErr(fmt.Sprintf("rest sink response relay failed: %v", err))
+			}
+		}
 	}
 	return nil
+}
+
+// Publish relays the HTTP response body back to the caller via MQTT. The topic
+// and correlation data are resolved from the rule output per message, so a
+// request's MQTT v5 response topic / correlation data can be echoed back.
+func (p *responseMqttPublisher) Publish(ctx api.StreamContext, item api.RawTuple, body []byte) error {
+	topic := p.topicTemplate
+	props := make(map[string]string, 2)
+	if dp, ok := item.(api.HasDynamicProps); ok {
+		if nt, transformed := dp.DynamicProps(p.topicTemplate); transformed {
+			topic = nt
+		}
+		if p.corrTemplate != "" {
+			if nc, transformed := dp.DynamicProps(p.corrTemplate); transformed {
+				props["correlationData"] = nc
+			}
+		}
+	}
+	if topic == "" {
+		return fmt.Errorf("response topic is empty")
+	}
+	ctx.GetLogger().Debugf("relaying rest response to mqtt topic %s, body %s", topic, string(body))
+	return p.cli.Publish(ctx, topic, p.qos, p.retained, body, props)
 }
 
 func (r *RestSink) prepareHeaders(item api.RawTuple) map[string]string {
