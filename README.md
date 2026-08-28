@@ -1,206 +1,141 @@
-# LF Edge eKuiper - An edge lightweight IoT data analytics software
-
-[![GitHub Release](https://img.shields.io/github/release/lf-edge/ekuiper?color=brightgreen)](https://github.com/lf-edge/ekuiper/releases)
-[![Docker Pulls](https://img.shields.io/docker/pulls/lfedge/ekuiper)](https://hub.docker.com/r/lfedge/ekuiper)
-[![codecov](https://codecov.io/gh/lf-edge/ekuiper/branch/master/graph/badge.svg?token=24E9Q3C0M0)](https://codecov.io/gh/lf-edge/ekuiper)
-[![Go Report Card](https://goreportcard.com/badge/github.com/lf-edge/ekuiper)](https://goreportcard.com/report/github.com/lf-edge/ekuiper)
-[![Slack](https://img.shields.io/badge/Slack-LF%20Edge-39AE85?logo=slack)](https://slack.lfedge.org/)
-[![Twitter](https://img.shields.io/badge/Follow-EMQ-1DA1F2?logo=twitter)](https://twitter.com/EMQTech)
-[![Community](https://img.shields.io/badge/Community-Kuiper-yellow?logo=github)](https://github.com/lf-edge/ekuiper/discussions)
-[![YouTube](https://img.shields.io/badge/Subscribe-EMQ-FF0000?logo=youtube)](https://www.youtube.com/channel/UC5FjR77ErAxvZENEWzQaO5Q)
-
-[English](README.md) | [简体中文](README-CN.md) | [日本語](README-JP.md)
-
-## Overview
-
-LF Edge eKuiper is a lightweight IoT data analytics and stream processing engine running on resource-constraint edge devices. The major goal for eKuiper is to provide a streaming software framework (similar to [Apache Flink](https://flink.apache.org)) in edge side.  eKuiper's  **rule engine** allows user to provide either SQL based or graph based (similar to Node-RED) rules to create IoT edge analytics applications within few minutes.
-
-![arch](./docs/en_US/resources/arch.png)
-
-**User scenarios**
-
-It can be run at various IoT edge user scenarios, such as,
-- Real-time processing of production line data in the IIoT 
-- Gateway of connected vehicle analyze the data from CAN in IoV
-- Real-time analysis of wind turbines and smart bulk energy storage data in smart energy
-
-eKuiper processing at the edge can greatly reduce system response latency, save network bandwidth and storage costs and improve system security.
-
-## Features
-
-- Lightweight
-
-  - Core server package is only about 4.5M, memory footprint is about 10MB
-
-- Cross-platform
-
-  - CPU Arch：X86 AMD * 32/64; ARM * 32/64; PPC
-  - Popular Linux distributions, OpenWrt Linux, MacOS and Docker
-  - Industrial PC, Raspberry Pi, industrial gateway, home gateway, MEC edge cloud server
-
-- Data analysis support
-
-  - Support data ETL
-  - Data order, group, aggregation and join with different data sources (the data from databases and files)
-  - 60+ functions, includes mathematical, string, aggregate and hash etc
-  - 4 time windows & count window
-
-- Highly extensible 
-
-  It supports to extend at `Source`, `Functions` and `Sink` with Golang or Python.
-
-  - Source: allows users to add more data source for analytics. 
-  - Sink: allows users to send analysis result to different customized systems.
-  - UDF functions: allow users to add customized functions for data analysis (for example, AI/ML function invocation) 
-
-- Management
-
-  - [A free dockerised web based management dashboard](https://hub.docker.com/r/emqx/ekuiper-manager) for visualized management
-  - [An open-source free web based management dashboard](https://github.com/ankur-paan/ekuiper-manager) for visualized management based on latest ekuiper release
-  - Swagger API playground available at https://ankur-paan.github.io/ekuiper-manager/
-  - Plugins, streams and rules management through CLI, REST API and config maps(Kubernetes)
-  - Easily be integrated with Kubernetes
-    frameworks [KubeEdge](https://github.com/kubeedge/kubeedge), [OpenYurt](https://openyurt.io/), [K3s](https://github.com/rancher/k3s) [Baetyl](https://github.com/baetyl/baetyl)
-
-- Integration with EMQX products
-
-  Seamless integration with [EMQX](https://www.emqx.io/), [Neuron](https://neugates.io/) & [NanoMQ](https://nanomq.io/), and provided an end-to-end solution from IIoT, IoV 
-
-## Quick start
-
-- [5 minutes quick start](docs/en_US/getting_started/quick_start_docker.md)
-- [Getting started](docs/en_US/getting_started/getting_started.md)
-- [EdgeX rule engine tutorial](docs/en_US/edgex/edgex_rule_engine_tutorial.md)
-
-## Community
-
-Join our [Slack](https://slack.lfedge.org/), and then join [ekuiper](https://lfedge.slack.com/archives/C024F4P7KCK) or [ekuiper-user](https://lfedge.slack.com/archives/C024F4SMEMR) channel.
-
-### Meeting
-
-Subscribe to community events [calendar](https://lists.lfedge.org/g/ekuiper-tsc/calendar?calstart=2021-08-06).
-
-Weekly community meeting at Friday 10:30AM GMT+8:
-- [Zoom meeting link](https://zoom.us/j/95097577087?pwd=azZaOXpXWmFoOXpqK293RFp0N1pydz09 )
-- [Meeting minutes](https://wiki.lfedge.org/display/EKUIPER/Weekly+Development+Meeting)
-
-### Contributing
-Thank you for your contribution! Please refer to the [CONTRIBUTING.md](./docs/en_US/CONTRIBUTING.md) for more information.
-
-## Performance test result
-
-### MQTT throughput test
-
-- Using JMeter MQTT plugin to send IoT data to [EMQX Broker](https://www.emqx.io/), such as: `{"temperature": 10, "humidity" : 90}`, the value of temperature and humidity are random integer between 0 - 100.
-- eKuiper subscribe from EMQX Broker, and analyze data with SQL: `SELECT * FROM demo WHERE temperature > 50 `
-- The analysis result are wrote to local file by using [file sink plugin](docs/en_US/guide/sinks/plugin/file.md).
-
-| Devices                                        | Message # per second | CPU usage     | Memory usage |
-|------------------------------------------------|----------------------|---------------|--------------|
-| Raspberry Pi 3B+                               | 12k                  | sys+user: 70% | 20M          |
-| AWS t2.micro( 1 Core * 1 GB) <br />Ubuntu18.04 | 10k                  | sys+user: 25% | 20M          |
-
-### EdgeX throughput test
-
-- A [Go application](test/edgex/benchmark/pub.go) is written to send data to ZeroMQ message bus, the data is as
-  following.
-
-  ```
-  {
-    "Device": "demo", "Created": 000, …
-    "readings": 
-    [
-       {"Name": "Temperature", value: "30", "Created":123 …},
-       {"Name": "Humidity", value: "20", "Created":456 …}
-    ]
-  }
-  ```
-
-- eKuiper subscribe from EdgeX ZeroMQ message bus, and analyze data with
-  SQL: ``SELECT * FROM demo WHERE temperature > 50``. 90% of data will be filtered by the rule.
-
-- The analysis result are sent to [nop sink](docs/en_US/guide/sinks/builtin/nop.md), so all the result data will be
-  ignored.
-
-|                                                | Message # per second | CPU usage     | Memory usage |
-|------------------------------------------------|----------------------|---------------|--------------|
-| AWS t2.micro( 1 Core * 1 GB) <br />Ubuntu18.04 | 11.4 k               | sys+user: 75% | 32M          |
-
-### Max number of rules support
-
-- 8000 rules with 800 message/second in total
-- Configurations
-  - 2 core * 4GB memory in AWS
-  - Ubuntu
-- Resource usage
-  - Memory: 89% ~ 72%
-  - CPU: 25%
-  - 400KB - 500KB / rule
-- Rule
-  - Source: MQTT
-  - SQL: `SELECT temperature FROM source WHERE temperature > 20` (90% data are filtered) 
-  - Sink: Log
-
-### Multiple rules with shared source instance
-
-- 300 rules with a shared MQTT stream instance.
-  - 500 messages/second in the MQTT source
-  - 150,000 message processing per second in total
-- Configurations:
-  - 2 Core * 2GB memory in AWS
-  - Ubuntu
-- Resource usage
-  - Memory: 95MB
-  - CPU: 50%
-- Rule
-  - Source: MQTT
-  - SQL: `SELECT temperature FROM source WHERE temperature > 20`, (90% data are filtered)
-  - Sink: 90% nop and 10% MQTT
-
-To run the benchmark by yourself, please check [the instruction](./test/benchmark/multiple_rules/readme.md).
-
-## Documents
-
-Check out the [latest document](https://ekuiper.org/docs/en/latest/) in official website.
-
-
-## Build from source
-
-#### Preparation
-
-- Go version >= 1.25
-
-#### Compile
-
-+ Binary: 
-
-  - Binary: `$ make`
-
-  - Binary files that support EdgeX: `$ make build_with_edgex`
-
-  - Minimal binary file with core runtime only: `$ make build_core`
-
-+ Packages: `$ make pkg`
-
-  - Packages: `$ make pkg`
-
-  - Package files that support EdgeX: `$ make pkg_with_edgex`
-
-+ Docker images: `$ make docker`
-
-  > Docker images support EdgeX by default
-
-Prebuilt binaries are provided in the release assets. If using os or arch which does not have prebuilt binaries, please
-use cross-compilation, refer to [this doc](docs/en_US/operation/compile/cross-compile.md).
-
-During compilation, features can be selected through go build tags so that users can build a customized product with
-only the desired feature set to reduce binary size. This is critical when the target deployment environment has resource
-constraint. Please refer to [features](docs/en_US/operation/compile/features.md) for more detail.
-
-## Open source license
-
-[Apache 2.0](LICENSE)
-
-## Powered by
-
-[![JetBrains logo.](https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg)](https://jb.gg/OpenSource)
+<div align="center">
+  <img src="Logo.png" alt="B2C" width="120"/>
+  <h2>B2C</h2>
+  <h3>超轻量物联网边缘流式分析引擎</h3>
+</div>
+
+### 一、项目简介
+- **B2C** 是 [LF Edge eKuiper](https://github.com/lf-edge/ekuiper) 的增强分支，一款可运行在各类资源受限硬件上的**物联网边缘流式数据分析引擎**。
+- 提供类似 [Apache Flink](https://flink.apache.org) 的**实时流式计算框架**，可在边缘端完成数据接入、转换、分析、告警与转发。
+- 通过 **SQL 规则** 或 **Graph 规则**（类似 Node-RED）快速创建物联网边缘分析应用。
+- 面向 IIoT、车联网（IoV）、智慧能源等场景，显著降低响应延迟、节省带宽与存储成本、提升系统安全性。
+
+### 二、主要特性
+| 特性 | 说明 |
+|------|------|
+| 超轻量 | 核心服务安装包约 4.5MB，首次运行内存约 10MB |
+| 跨平台 | X86/ARM 32/64、PPC；Linux、OpenWrt、macOS、Docker；工控机、树莓派、工业/家庭网关、MEC 边缘云 |
+| 完整数据分析 | 数据抽取/转换/过滤（ETL）、排序、分组、聚合、连接；60+ 内置函数；4 类时间窗口 + 计数窗口 |
+| 高可扩展 | 支持用 **Golang / Python** 扩展 `Source`（数据源）、`Sink`（目标）、`UDF`（自定义函数） |
+| 便捷管理 | CLI、REST API、Kubernetes config map 管理流/规则/插件；可配 Web 管理控制台 |
+| 生态集成 | 与 [EMQX](https://www.emqx.io/)、[Neuron](https://neugates.io/)、[NanoMQ](https://nanomq.io/) 无缝集成，提供 IIoT / IoV 端到端方案 |
+
+### 三、快速开始
+
+#### 1. Docker 方式（推荐）
+
+```bash
+docker run -p 9081:9081 -d --name kuiper \
+  -e MQTT_SOURCE__DEFAULT__SERVER="tcp://broker.emqx.io:1883" \
+  fasteredge/b2c:latest
+
+# 进入容器
+docker exec -it kuiper /bin/sh
+```
+
+#### 2. 本地构建
+
+```bash
+# 环境要求：go.mod / go.work 声明 toolchain go1.25.13（已修复标准库 CVE）
+go mod tidy
+
+# 构建服务端与 CLI
+go build -o bin/kuiperd ./cmd/kuiperd
+go build -o bin/kuiper ./cmd/kuiper
+
+# 启动服务（REST 端口默认 9081）
+./bin/kuiperd
+```
+
+#### 3. 5 分钟上手
+
+```shell
+# 创建流（类似数据库建表）：订阅设备消息
+bin/kuiper create stream demo '(temperature float, humidity bigint) WITH (FORMAT="JSON", DATASOURCE="devices/+/messages")'
+
+# 交互式查询
+bin/kuiper query
+kuiper > select * from demo where temperature > 30;
+
+# 用任意 MQTT 客户端向 devices/device_001/messages 发布消息
+# mqttx pub -h broker.emqx.io -m '{"temperature": 40, "humidity" : 20}' -t devices/device_001/messages
+
+# 符合条件的数据会实时打印在 query 窗口
+kuiper > [{"temperature": 40, "humidity" : 20}]
+```
+
+### 四、架构与组件
+
+```
+B2C/
+├─ cmd/
+│  ├─ kuiperd/     # 服务端守护进程
+│  └─ kuiper/      # 命令行工具（CLI）
+├─ internal/
+│  ├─ topo/        # 规则拓扑与执行
+│  ├─ xsql/        # SQL 引擎与流式处理
+│  ├─ server/      # REST API 服务
+│  └─ processor/   # 流/规则/插件管理
+├─ pkg/            # 通用基础设施（ast、cast、kv、store 等）
+├─ extensions/     # 扩展：source / sink / 函数
+├─ plugins/        # 可插拔组件（portable）
+├─ etc/            # 配置（kuiper.yaml、MQTT、连接等）
+└─ docs/           # 中英文文档
+```
+
+### 五、配置说明
+
+核心配置位于 `etc/kuiper.yaml`：
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `basic.restPort` | `9081` | REST API 服务端口 |
+| `basic.consoleLog` | `false` | 控制台日志开关 |
+| `basic.fileLog` | `true` | 文件日志开关 |
+| `source` | — | 各类数据源（MQTT、EdgeX、HTTP 等）连接配置 |
+| `sink` | — | 各类目标（MQTT、文件、REST、InfluxDB 等）配置 |
+
+常用环境变量（Docker）：
+
+| 环境变量 | 说明 |
+|----------|------|
+| `MQTT_SOURCE__DEFAULT__SERVER` | 默认 MQTT 源服务器地址 |
+| `KUIPER__BASIC__RESTPORT` | 覆盖 REST 端口 |
+| `KUIPER__BASIC__CONSOLELOG` | 覆盖控制台日志开关 |
+
+### 六、REST API
+
+服务默认监听 `9081` 端口，提供完整的流 / 规则 / 插件管理接口：
+
+| 路径 | 方法 | 说明 |
+|------|------|------|
+| `/streams` | GET/POST | 查看 / 创建流 |
+| `/streams/{name}` | GET/DELETE | 查看 / 删除指定流 |
+| `/rules` | GET/POST | 查看 / 创建规则 |
+| `/rules/{id}` | GET/DELETE | 查看 / 删除指定规则 |
+| `/rules/{id}/status` | GET | 查询规则运行状态 |
+| `/rules/{id}/start` `/stop` | POST | 启动 / 停止规则 |
+| `/plugins` | GET/POST | 查看 / 安装插件 |
+| `/functions` | GET | 查看已注册函数 |
+| `/sinks` / `/sources` | GET | 查看目标 / 源插件 |
+
+### 七、CLI 常用命令
+
+```bash
+bin/kuiper create stream demo '...'     # 创建流
+bin/kuiper drop stream demo             # 删除流
+bin/kuiper show streams                 # 列出所有流
+bin/kuiper create rule myRule '...'     # 创建规则
+bin/kuiper getstatus rule myRule        # 查询规则状态
+bin/kuiper query                        # 进入交互式查询
+bin/kuiper plugin install ...           # 安装插件
+```
+
+### 八、安全与可靠性（本分支已加固）
+- **依赖全面升级**：`golang.org/x/text`、`x/net`、`x/crypto`、`klauspost/compress`、`go.opentelemetry.io/otel` 等均已升级至修复 CVE 的版本。
+- **工具链**：`go.work` 与 `go.mod` 固定 `toolchain go1.25.13`，修复标准库（crypto/tls、net/http、x509 等）已知漏洞。
+- **核心代码 govulncheck 扫描 0 漏洞**（不依赖 cgo）。
+
+---
+
+> 本项目基于开源项目 **[LF Edge eKuiper](https://github.com/lf-edge/ekuiper)** 构建，感谢上游社区与所有贡献者的工作。
