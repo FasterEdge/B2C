@@ -151,7 +151,7 @@ func (t *Server) CreateRule(rule *model.RPCArgDesc, reply *string) error {
 	if err != nil {
 		return fmt.Errorf("Create rule %s error : %s.", id, err)
 	} else {
-		*reply = fmt.Sprintf("Rule %s was created successfully, please use 'bin/kuiper getstatus rule %s' command to get rule status.", rule.Name, rule.Name)
+		*reply = fmt.Sprintf("Rule %s was created successfully, please use 'bin/b2c getstatus rule %s' command to get rule status.", rule.Name, rule.Name)
 	}
 	return nil
 }

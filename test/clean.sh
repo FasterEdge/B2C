@@ -17,12 +17,12 @@
 
 set -e
 
-pids=`ps aux|grep "kuiperd" | grep "bin"|awk '{printf $2 " "}'`
+pids=`ps aux|grep "b2cd" | grep "bin"|awk '{printf $2 " "}'`
 if [ "$pids" = "" ] ; then
-   echo "No kuiper server was started"
+   echo "No b2c server was started"
 else
   for pid in $pids ; do
-    echo "kill kuiper " $pid
+    echo "kill b2c " $pid
     kill -INT $pid
   done
 fi

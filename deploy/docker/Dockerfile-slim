@@ -24,7 +24,7 @@ RUN make build_with_edgex_and_script
 FROM debian:bookworm-slim
 
 COPY ./deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
-COPY --from=builder /go/kuiper/_build/kuiper-* /kuiper/
+COPY --from=builder /go/kuiper/_build/b2c-* /b2c/
 
 ARG DEBIAN_FRONTEND="noninteractive"
 
@@ -33,15 +33,15 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-WORKDIR /kuiper
+WORKDIR /b2c
 
-ENV MAINTAINER="emqx.io"
-ENV KUIPER_HOME="/kuiper"
+ENV MAINTAINER="b2c"
+ENV KUIPER_HOME="/b2c"
 ENV KUIPER__BASIC__CONSOLELOG=true
 
-VOLUME ["/kuiper/etc", "/kuiper/data", "/kuiper/plugins", "/kuiper/log"]
+VOLUME ["/b2c/etc", "/b2c/data", "/b2c/plugins", "/b2c/log"]
 EXPOSE 9081 20498
 
 ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
 
-CMD ["./bin/kuiperd"]
+CMD ["./bin/b2cd"]

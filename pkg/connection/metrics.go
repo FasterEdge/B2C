@@ -21,7 +21,7 @@ const (
 )
 
 var ConnStatusGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-	Namespace: "kuiper",
+	Namespace: "b2c",
 	Subsystem: "conn_status",
 	Name:      "gauge",
 	Help:      "gauge of connection status",

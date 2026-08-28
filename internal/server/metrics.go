@@ -39,7 +39,7 @@ func NewMetrics() *Metrics {
 		return e
 	})
 	if err != nil {
-		conf.Log.Warnf("Can not initialize process for ekuiperd : %v", err)
+		conf.Log.Warnf("Can not initialize process for b2cd : %v", err)
 	}
 	return &Metrics{kp: kp}
 }

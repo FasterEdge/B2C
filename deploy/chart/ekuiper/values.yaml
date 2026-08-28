@@ -4,7 +4,7 @@
 
 
 image:
-  repository: lfedge/ekuiper
+  repository: b2c
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -118,8 +118,8 @@ tls:
   existingSecretFullChain: false
 
 # @ignored
-kuiperConfig:
-  "kuiper.yaml":
+b2cConfig:
+  "b2c.yaml":
     basic:
       # debug | info | warn | error | fatal | panic
       logLevel: info
@@ -275,7 +275,7 @@ kuiperConfig:
       recvTimeout: 5s
 
     openTelemetry:
-      serviceName: kuiperd-service
+      serviceName: b2cd-service
       enableRemoteCollector: false
       remoteEndpoint: localhost:4318
       localTraceCapacity: 2048

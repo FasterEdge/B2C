@@ -17,21 +17,21 @@
 
 set -e
 
-pids=`ps aux|grep "kuiperd" | grep "bin"|awk '{printf $2 " "}'`
+pids=`ps aux|grep "b2cd" | grep "bin"|awk '{printf $2 " "}'`
 if [ "$pids" = "" ] ; then
-   echo "No kuiper server was started"
+   echo "No b2c server was started"
 else
   for pid in $pids ; do
-    echo "kill kuiper " $pid
+    echo "kill b2c " $pid
     kill -9 $pid
   done
 fi
 
 ver=`git describe --tags --always --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//g'`
 os=`uname -s | tr "[A-Z]" "[a-z]"`
-base_dir=_build/kuiper-"$ver"-"$os"-amd64
+base_dir=_build/b2c-"$ver"-"$os"-amd64
 rm -rf $base_dir/data/*
-ls -l $base_dir/bin/kuiperd
+ls -l $base_dir/bin/b2cd
 
 mkdir -p cover
 export GOCOVERDIR="../../cover"
@@ -43,6 +43,6 @@ export KUIPER__PORTABLE__INITTIMEOUT="5m"
 export KUIPER__BASIC__ENABLEPRIVATENET="true"
 
 cd $base_dir/
-touch log/kuiper.out
-nohup bin/kuiperd > log/kuiper.out 2>&1 &
-echo "starting kuiper at " $base_dir
+touch log/b2c.out
+nohup bin/b2cd > log/b2c.out 2>&1 &
+echo "starting b2c at " $base_dir

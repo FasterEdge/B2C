@@ -18,16 +18,16 @@ COPY . /go/kuiper
 
 WORKDIR /go/kuiper/tools/kubernetes
 
-RUN go build -o kuiper-kubernetes-tool main.go
+RUN go build -o b2c-kubernetes-tool main.go
 
 FROM alpine:3.20.0
 
-WORKDIR /kuiper-kubernetes-tool
+WORKDIR /b2c-kubernetes-tool
 
 RUN mkdir -p log
 
-COPY --from=builder /go/kuiper/tools/kubernetes/kuiper-kubernetes-tool .
+COPY --from=builder /go/kuiper/tools/kubernetes/b2c-kubernetes-tool .
 COPY --from=builder /go/kuiper/tools/kubernetes/etc etc
 COPY --from=builder /go/kuiper/tools/kubernetes/sample sample
 
-CMD ["./kuiper-kubernetes-tool", "etc/cf.yaml"]
+CMD ["./b2c-kubernetes-tool", "etc/cf.yaml"]

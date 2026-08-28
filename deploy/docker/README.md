@@ -1,6 +1,6 @@
 # `Dockerfile` links
 
-- [lfedge/ekuiper](https://github.com/lf-edge/ekuiper/blob/master/deploy/docker/Dockerfile)
+- [b2c](https://github.com/lf-edge/ekuiper/blob/master/deploy/docker/Dockerfile)
 
 # Quick reference
 
@@ -98,13 +98,13 @@ improve system security.
 Execute some command under this docker image
 
 ```shell
-docker run -d -v `pwd`:$somewhere lfedge/ekuiper:$tag $somecommand
+docker run -d -v `pwd`:$somewhere b2c:$tag $somecommand
 ```
 
 For example
 
 ```shell
-docker run -p 9081:9081 -d --name ekuiper MQTT_SOURCE__DEFAULT__SERVER="$MQTT_BROKER_ADDRESS" lfedge/ekuiper:$tag
+docker run -p 9081:9081 -d --name b2c MQTT_SOURCE__DEFAULT__SERVER="$MQTT_BROKER_ADDRESS" b2c:$tag
 ```
 
 > Notice that, before v1.5.0 the mqtt server property is an array. Please check [migration guide](#migration-guide) for detail.
@@ -114,7 +114,7 @@ docker run -p 9081:9081 -d --name ekuiper MQTT_SOURCE__DEFAULT__SERVER="$MQTT_BR
 1. Set eKuiper source to an MQTT server. This sample uses server locating at ``tcp://broker.emqx.io:1883``. ``broker.emqx.io`` is a public MQTT test server hosted by [EMQ](https://www.emqx.io).
 
    ```shell
-   docker run -p 9081:9081 -d --name ekuiper -e MQTT_SOURCE__DEFAULT__SERVER="tcp://broker.emqx.io:1883" lfedge/ekuiper:$tag
+   docker run -p 9081:9081 -d --name b2c -e MQTT_SOURCE__DEFAULT__SERVER="tcp://broker.emqx.io:1883" b2c:$tag
    ```
 
 2. Create a stream - the stream is your stream data schema, similar to table definition in database. Let's say the temperature & humidity data are sent to ``broker.emqx.io``, and those data will be processed in your **LOCAL RUN** eKuiper docker instance.  Below steps will create a stream named ``demo``, and data are sent to ``devices/device_001/messages`` topic, while ``device_001`` could be other devices, such as ``device_002``, all of those data will be subscribed and handled by ``demo`` stream.
@@ -161,13 +161,13 @@ Next for exploring more powerful features of eKuiper? Refer to below for how to 
 
 # Image Variants
 
-The `lfedge/ekuiper` images come in many flavors, each designed for a specific use case.
+The `b2c` images come in many flavors, each designed for a specific use case.
 
-## `lfedge/ekuiper:<tag>`
+## `b2c:<tag>`
 
-This is the defacto image. If you are unsure about what your needs are, you probably want to use this one. It is an alias of tag `lfedge/ekuiper:<tag>-alpine`(see below) since 1.7.1. Previously, it is equivalent to the `lfedge/ekuiper:<tag>-dev` image
+This is the defacto image. If you are unsure about what your needs are, you probably want to use this one. It is an alias of tag `b2c:<tag>-alpine`(see below) since 1.7.1. Previously, it is equivalent to the `b2c:<tag>-dev` image
 
-## `lfedge/ekuiper:<tag>-alpine`
+## `b2c:<tag>-alpine`
 
 This image is based on the popular [Alpine Linux project](http://alpinelinux.org), available in [the `alpine` official image](https://hub.docker.com/_/alpine). Alpine Linux is much smaller than most distribution base images (~5MB), and thus leads to much slimmer images in general.
 
@@ -175,20 +175,20 @@ This variant is highly recommended when final image size being as  small as poss
 
 To minimize image size, it's uncommon for additional related tools (such as `git` or `bash`) to be included in Alpine-based images. Using this image as a base, add the things you need in your own Dockerfile (see the [`alpine` image description](https://hub.docker.com/_/alpine/) for examples of how to install packages if you are unfamiliar).
 
-## `lfedge/ekuiper:<tag>-slim`
+## `b2c:<tag>-slim`
 
-This image is based on Debian, and only contains the minimal packages needed to run eKuiper. The difference between this and dev image (`lfedge/ekuiper:<tag>-dev`) is that this image does not include Golang development environment. The typical usage of this image would be deploy the plugins compiled in previous Docker image instances. This is the official recommended image if you want to deploy & run  customized plugins into eKuiper.
+This image is based on Debian, and only contains the minimal packages needed to run eKuiper. The difference between this and dev image (`b2c:<tag>-dev`) is that this image does not include Golang development environment. The typical usage of this image would be deploy the plugins compiled in previous Docker image instances. This is the official recommended image if you want to deploy & run  customized plugins into eKuiper.
 
-## `lfedge/ekuiper:<tag>-slim-python`
+## `b2c:<tag>-slim-python`
 
 This image is the same as slim except that it also contains python environment. It is recommended if using eKuiper python portable plugins.
 
-## `lfedge/ekuiper:<tag>-full`
+## `b2c:<tag>-full`
 
 This image is the same as slim except that it also ship the plugins like SQL source, Kafka sink and more into the
 eKuiper binary. It is recommended if using eKuiper prebuilt plugins.
 
-## `lfedge/ekuiper:<tag>-dev`
+## `b2c:<tag>-dev`
 
 This is the development Docker image, which is based on Debian and it also includes a Golang build environment. If you are unsure about what your needs  are, you probably want to use this one. It is designed to be used both as a throw away container (mount your source code, compile plugins for eKuiper,  and start the  container to run your app), as well as the base to build other images. Please be aware of that this image is the biggest size, and it's usually used for development purpose.
 
@@ -238,7 +238,7 @@ Port = 48080
 
 If you want to configure more options, you can mount the configuration file into eKuiper container, like this:
 ```
-$ docker run --name ekuiper -v /path/to/mqtt_sources.yaml:/kuiper/etc/mqtt_sources.yaml -v /path/to/edgex.yaml:/kuiper/etc/sources/edgex.yaml lfedge/ekuiper:$tag
+$ docker run --name b2c -v /path/to/mqtt_sources.yaml:/kuiper/etc/mqtt_sources.yaml -v /path/to/edgex.yaml:/kuiper/etc/sources/edgex.yaml b2c:$tag
 ```
 
 # More

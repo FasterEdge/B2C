@@ -19,10 +19,10 @@ set -e -u
 
 case $1 in
     start)
-        nohup /usr/bin/kuiperd >> /var/log/kuiper/nohup.out &
+        nohup /usr/bin/b2cd >> /var/log/b2c/nohup.out &
         ;;
     stop)
-        pid=$(ps -ef |grep kuiperd |grep -v "grep" | awk '{print $2}')
+        pid=$(ps -ef |grep b2cd |grep -v "grep" | awk '{print $2}')
         while $(kill "$pid" 2>/dev/null); do
             sleep 1
         done
@@ -31,7 +31,7 @@ case $1 in
         if [ "$(curl -sl -w %{http_code} 127.0.0.1:9081 -o /dev/null)" = "200" ]; then
             echo pong
         else
-            echo "Ping kuiper failed"
+            echo "Ping b2c failed"
             exit 1
         fi
         ;;

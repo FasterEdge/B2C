@@ -24,12 +24,12 @@ RUN make build_with_edgex
 FROM python:3.12-alpine
 
 # Set environment vars
-ENV MAINTAINER="emqx.io" \
-    KUIPER_HOME="/kuiper" \
+ENV MAINTAINER="b2c" \
+    KUIPER_HOME="/b2c" \
     KUIPER__BASIC__CONSOLELOG=true
 
 # These vars are not persisted in the final image layer
-ARG KUIPER_USER="kuiper"
+ARG KUIPER_USER="b2c"
 ARG KUIPER_USER_ID="1001"
 
 WORKDIR ${KUIPER_HOME}
@@ -40,15 +40,15 @@ RUN adduser -DH -s /sbin/nologin -u ${KUIPER_USER_ID} ${KUIPER_USER} && \
     mkdir -p /usr/local/taos && \
     chown -Rh ${KUIPER_USER}:${KUIPER_USER} /usr/local/taos
 
-# Run the kuiper process under the kuiper user
+# Run the b2c process under the b2c user
 USER ${KUIPER_USER}
 
 COPY --chown=${KUIPER_USER}:${KUIPER_USER} ./deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
-COPY --chown=${KUIPER_USER}:${KUIPER_USER} --from=builder /go/kuiper/_build/kuiper-* /kuiper/
+COPY --chown=${KUIPER_USER}:${KUIPER_USER} --from=builder /go/kuiper/_build/b2c-* /b2c/
 
 VOLUME ["${KUIPER_HOME}/etc", "${KUIPER_HOME}/data", "${KUIPER_HOME}/plugins", "${KUIPER_HOME}/log"]
 EXPOSE 9081 20498
 
 ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
 
-CMD ["./bin/kuiperd"]
+CMD ["./bin/b2cd"]

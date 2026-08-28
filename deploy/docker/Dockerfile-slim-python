@@ -48,18 +48,18 @@ COPY --from=python-builder /sdk/python /sdk/python
 WORKDIR /sdk/python
 RUN pip install *.whl
 
-COPY --from=builder /go/kuiper/_build/kuiper-* /kuiper/
-WORKDIR /kuiper
+COPY --from=builder /go/kuiper/_build/b2c-* /b2c/
+WORKDIR /b2c
 RUN rm -rf /sdk/python
 COPY ./deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 
-ENV MAINTAINER="emqx.io"
-ENV KUIPER_HOME="/kuiper"
+ENV MAINTAINER="b2c"
+ENV KUIPER_HOME="/b2c"
 ENV KUIPER__BASIC__CONSOLELOG=true
 
-VOLUME ["/kuiper/etc", "/kuiper/data", "/kuiper/plugins", "/kuiper/log"]
+VOLUME ["/b2c/etc", "/b2c/data", "/b2c/plugins", "/b2c/log"]
 EXPOSE 9081 20498
 
 ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
 
-CMD ["./bin/kuiperd"]
+CMD ["./bin/b2cd"]

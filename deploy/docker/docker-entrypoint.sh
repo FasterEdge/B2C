@@ -21,6 +21,6 @@ else
     set -e
 fi
 
-KUIPER_HOME=${KUIPER_HOME:-"/kuiper"}
+KUIPER_HOME=${KUIPER_HOME:-"/b2c"}
 
 exec "$@"
