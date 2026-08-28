@@ -162,3 +162,65 @@ func (ts *TestSubscriber) Close() {
 		_ = ts.cli.Close(ts.ctx)
 	}
 }
+
+// 常规场景：静态主题，不带任何 MQTT v5 请求属性
+func TestRestSinkResponseRelayStaticTopic(t *testing.T) {
+	server := mqttserver.New(nil)
+	_ = server.AddHook(new(auth.AllowHook), nil)
+	tcp := listeners.NewTCP(listeners.Config{ID: "st", Address: ":13889"})
+	require.NoError(t, server.AddListener(tcp))
+	go func() { _ = server.Serve() }()
+	defer func() { _ = server.Close(); tcp.Close(nil) }()
+	brokerURL := "mqtt://127.0.0.1:13889"
+
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"result":"forwarded-ok"}`))
+	}))
+	defer httpServer.Close()
+
+	dataDir, err := conf.GetDataLoc()
+	require.NoError(t, err)
+	require.NoError(t, store.SetupDefault(dataDir))
+	require.NoError(t, connection.InitConnectionManager4Test())
+
+	// 先订阅固定主题
+	ctx2 := mockContext.NewMockContext("subst", "op1")
+	sub, ok := mqtt.GetSource().(api.BytesSource)
+	require.True(t, ok)
+	require.NoError(t, sub.Provision(ctx2, map[string]any{
+		"server": brokerURL, "protocolVersion": "5", "datasource": "edge/cloud/result", "qos": 0,
+	}))
+	require.NoError(t, sub.Connect(ctx2, func(string, string) {}))
+	got := make(chan []byte, 1)
+	require.NoError(t, sub.Subscribe(ctx2, func(_ api.StreamContext, data []byte, meta map[string]any, _ time.Time) {
+		got <- data
+	}, func(_ api.StreamContext, err error) {}))
+	time.Sleep(700 * time.Millisecond)
+
+	ctx := mockContext.NewMockContext("edgeRule", "op1")
+	s := &RestSink{}
+	require.NoError(t, s.Provision(ctx, map[string]any{
+		"url": httpServer.URL, "method": "post", "bodyType": "json",
+		"response": map[string]any{
+			"type": "mqtt",
+			"mqtt": map[string]any{
+				"server": brokerURL,
+				"topic":  "edge/cloud/result",
+				"qos":    1,
+			},
+		},
+	}))
+	require.NoError(t, s.Connect(ctx, func(string, string) {}))
+
+	// 无任何动态属性
+	raw := &xsql.RawTuple{Rawdata: []byte(`{"temp":35,"hum":80}`)}
+	require.NoError(t, s.Collect(ctx, raw))
+
+	select {
+	case payload := <-got:
+		assert.JSONEq(t, `{"result":"forwarded-ok"}`, string(payload))
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for static-topic relay")
+	}
+}
+

@@ -183,9 +183,16 @@ Text mode
 
 本示例中，每10条记录将生成一个 CSV 文件上传。
 
-## 响应回传（请求-响应网关）
+## 响应回传与协议转发（请求-响应网关）
 
-`response` 配置项使得 REST sink 可以充当"请求-响应网关"的响应通道：当 HTTP 请求成功完成后，REST sink 会把 HTTP 响应体发布到配置的 MQTT 主题，从而把响应送回给请求方。该能力与 MQTT v5 的请求-响应机制（`ResponseTopic` / `CorrelationData` 属性）配合，可以搭建完整的请求转发与转换闭环。
+`response` 配置项使 REST sink 成为通用的**请求协议转发、转换工具**：当 HTTP 请求成功完成后，REST sink 会把 HTTP 响应体发布到配置的 MQTT 主题。它既适用于 MQTT v5 的完整请求-响应闭环（通过 `ResponseTopic` / `CorrelationData` 属性动态回传），也适用于常规的协议转换、边缘计算等单向转发场景（使用固定主题即可，不依赖任何 MQTT 请求属性）。
+
+**能力定位**：
+
+- **协议转换**：任意协议来源（MQTT、HTTP、文件、内存等）→ 规则转换 → HTTP 转发 → 响应按需回传 MQTT，实现协议间桥接。
+- **边缘计算**：在边缘侧聚合、清洗、转换设备数据后转发到云端 API，并把云端响应回传到本地主题，供边缘设备订阅。
+- **请求-响应**：与 MQTT v5 请求-响应机制配合，把 HTTP 响应精确送回每个请求方（动态回传主题）。
+- **单向转发**：仅需 HTTP 转发、无需回传时，可不配置 `response`；需要把响应固定回收到一个主题时，配置静态主题即可。
 
 **配置结构**：
 
@@ -244,7 +251,72 @@ Text mode
 
 **注意事项**：
 
-- `response.mqtt.topic` 与 `response.mqtt.correlationData` 支持动态参数。要使用它们，需在规则的 SQL 中通过 `meta()` 函数（如 `meta(responseTopic)`)把 MQTT v5 请求属性暴露为输出字段，再以 `{{.字段名}}` 形式引用。
+- `response.mqtt.topic` 与 `response.mqtt.correlationData` 支持动态参数。要使用它们，需在规则的 SQL 中通过 `meta()` 函数（如 `meta(responseTopic)`)把 MQTT v5 请求属性暴露为输出字段，再以 `{{.字段名}}` 形式引用。若配置为静态字符串（如 `device/response`），则所有请求的响应都会发布到该固定主题，适用于常规协议转换与边缘计算场景。
 - 仅有 HTTP 响应体非空时才会回传；HTTP 请求失败或返回非 2xx 状态码时不会回传。
 - 若请求方不携带 `ResponseTopic`，且 `topic` 未配置静态主题，回传会因主题为空而失败并记录错误日志。
 - 回传的 MQTT 连接按规则独立创建，规则停止时自动释放。
+
+### 常规场景 · 单向转发与协议桥接
+
+无需 MQTT v5 属性也能使用 `response`：把 `topic` 配成固定主题，REST sink 会把每次 HTTP 响应都发布到该主题。常用拓扑：
+
+- **MQTT → HTTP → MQTT 桥接**：边缘设备通过 MQTT 上报，规则转换为 HTTP 转发到云端 API，云端响应回到本地固定主题。
+- **HTTP → HTTP → MQTT**：由 HTTP pull source 轮询或 HTTP push source 接收外部请求，规则处理后以 HTTP 转发，响应固定在 MQTT 主题上供订阅。
+- **边缘网关**：设备主题触发规则，聚合/过滤后转发云端，响应主题供设备侧订阅确认。
+
+**示例：MQTT 数据源 → HTTP 转发 → 固定主题回传（单向桥接）**
+
+```json
+{
+  "id": "edgeForward",
+  "sql": "SELECT deviceID, temp, hum FROM device/telemetry WHERE temp > 30",
+  "actions": [
+    {
+      "rest": {
+        "url": "https://cloud.example.com/v1/ingest",
+        "method": "post",
+        "bodyType": "json",
+        "sendSingle": true,
+        "response": {
+          "type": "mqtt",
+          "mqtt": {
+            "server": "tcp://127.0.0.1:1883",
+            "topic": "edge/cloud/result",
+            "qos": 1
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+**示例：HTTP pull 轮询 → HTTP 转发 → 固定主题回传**
+
+```json
+{
+  "id": "httpPollForward",
+  "sql": "SELECT * FROM polledHttp",
+  "actions": [
+    {
+      "rest": {
+        "url": "http://downstream-service/process",
+        "method": "post",
+        "bodyType": "json",
+        "sendSingle": true,
+        "response": {
+          "type": "mqtt",
+          "mqtt": {
+            "server": "tcp://127.0.0.1:1883",
+            "protocolVersion": "5",
+            "topic": "downstream/result",
+            "qos": 0
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+与 MQTT v5 请求-响应示例相比，常规场景的区别仅在于 `topic` 为静态值，不依赖 `ResponseTopic` 属性，因此请求方无需携带任何特殊属性即可使用。

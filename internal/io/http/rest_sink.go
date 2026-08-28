@@ -207,11 +207,21 @@ func (r *RestSink) Connect(ctx api.StreamContext, sch api.StatusChangeHandler) e
 	if r.config.Response != nil && r.config.Response.Mqtt != nil {
 		rc := r.config.Response.Mqtt
 		mqttProps := map[string]any{
-			"server":          rc.Server,
-			"protocolVersion": rc.ProtocolVersion,
-			"clientid":        rc.ClientId,
-			"username":        rc.Username,
-			"password":        rc.Password,
+			"server": rc.Server,
+		}
+		// Only set non-empty fields so that the MQTT connection keeps its
+		// defaults (e.g. protocolVersion defaults to 3.1.1).
+		if rc.ProtocolVersion != "" {
+			mqttProps["protocolVersion"] = rc.ProtocolVersion
+		}
+		if rc.ClientId != "" {
+			mqttProps["clientid"] = rc.ClientId
+		}
+		if rc.Username != "" {
+			mqttProps["username"] = rc.Username
+		}
+		if rc.Password != "" {
+			mqttProps["password"] = rc.Password
 		}
 		refId := fmt.Sprintf("%s-%s-rest-response", ctx.GetRuleId(), ctx.GetOpId())
 		cw, err := connection.FetchConnection(ctx, refId, "mqtt", mqttProps, sch)
