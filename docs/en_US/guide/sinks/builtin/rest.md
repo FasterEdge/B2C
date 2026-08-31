@@ -19,6 +19,10 @@ The action is used for publish output message into a RESTful API.
 | renegotiationSupport | true     | Determines how and when the client handles server-initiated renegotiation requests. Support `never`, `once` or `freely` options. Default: `never`.                                                                                                                                                                                                                                                |
 | insecureSkipVerify   | true     | Control if to skip the certification verification. If it is set to `true`, then skip certification verification; Otherwise, verify the certification. The default value is `true`.                                                                                                                                                                                                                |
 | oAuth                | true     | Define the authentication flow to follow the OAuth style. Other authentication method like apikey can directly set the key to header only, not need to set this configuration. Refer to [OAuth configuration](../../sources/builtin/http_pull.md#OAuth) in httppull source for more information.                                                                                                  |
+| response.mqtt.forwardStatus | true | When `true`, wrap the relay payload as `{status, body}` to preserve the HTTP status code. Defaults to `false` for legacy raw-body behavior. |
+| response.mqtt.forwardHeaders | true | When `true`, add HTTP `headers` to the relay envelope. Defaults to `false`. |
+| response.mqtt.forwardErrors | true | When `true`, relay non-2xx HTTP responses too. Defaults to `false`, preserving legacy sink error behavior. |
+| response.mqtt.forwardEmpty | true | When `true`, relay an empty HTTP body as well. Defaults to `false`. |
 
 Other common sink properties are supported. Please refer to the [sink common properties](../overview.md#common-properties) for more information.
 

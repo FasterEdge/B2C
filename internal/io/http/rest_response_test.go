@@ -26,8 +26,8 @@ import (
 	"github.com/lf-edge/ekuiper/v2/internal/pkg/store"
 	"github.com/lf-edge/ekuiper/v2/internal/xsql"
 	"github.com/lf-edge/ekuiper/v2/pkg/connection"
-	"github.com/lf-edge/ekuiper/v2/pkg/modules"
 	mockContext "github.com/lf-edge/ekuiper/v2/pkg/mock/context"
+	"github.com/lf-edge/ekuiper/v2/pkg/modules"
 	mqttserver "github.com/mochi-mqtt/server/v2"
 	"github.com/mochi-mqtt/server/v2/hooks/auth"
 	"github.com/mochi-mqtt/server/v2/listeners"
@@ -124,6 +124,32 @@ func TestRestSinkResponseRelay(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("timed out waiting for the correlation data property")
 	}
+}
+
+func TestResponseRelayEnvelope(t *testing.T) {
+	p := &responseMqttPublisher{forwardStatus: true, forwardHeaders: true}
+	resp := &http.Response{StatusCode: http.StatusAccepted, Header: http.Header{"X-Request-Id": []string{"abc"}}}
+
+	// JSON response body is embedded as an object.
+	encoded, err := p.buildEnvelope([]byte(`{"ok":true}`), resp)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"status":202,"headers":{"X-Request-Id":["abc"]},"body":{"ok":true}}`, string(encoded))
+
+	// Non-JSON body is embedded as a raw string.
+	encoded, err = p.buildEnvelope([]byte(`plain text`), resp)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"status":202,"headers":{"X-Request-Id":["abc"]},"body":"plain text"}`, string(encoded))
+
+	// Empty body is preserved (forwardEmpty is evaluated by the caller).
+	encoded, err = p.buildEnvelope(nil, resp)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"status":202,"headers":{"X-Request-Id":["abc"]},"body":""}`, string(encoded))
+
+	// Envelope only contains what was opted into.
+	statusOnly := &responseMqttPublisher{forwardStatus: true}
+	encoded, err = statusOnly.buildEnvelope([]byte(`hi`), resp)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"status":202,"body":"hi"}`, string(encoded))
 }
 
 // NewTestSubscriber is a minimal MQTT v5 subscriber used by the relay test to
@@ -223,4 +249,3 @@ func TestRestSinkResponseRelayStaticTopic(t *testing.T) {
 		t.Fatal("timed out waiting for static-topic relay")
 	}
 }
-

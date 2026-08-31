@@ -227,6 +227,26 @@ func TestRestSink_Apply(t *testing.T) {
 	}
 }
 
+func TestRestSinkDynamicFormDataIsPerTuple(t *testing.T) {
+	ctx := mockContext.NewMockContext("dynamicFormData", "op")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseMultipartForm(1 << 20)
+		_, _ = io.WriteString(w, r.FormValue("marker"))
+	}))
+	defer server.Close()
+	s := &RestSink{}
+	require.NoError(t, s.Provision(ctx, map[string]any{
+		"url": server.URL, "method": "post", "bodyType": "formdata", "fileFieldName": "payload",
+		"formData": map[string]any{"marker": "{{.marker}}"},
+	}))
+	require.NoError(t, s.Connect(ctx, func(string, string) {}))
+	first := &xsql.RawTuple{Rawdata: []byte("a"), Props: map[string]string{"{{.marker}}": "one"}}
+	second := &xsql.RawTuple{Rawdata: []byte("b"), Props: map[string]string{"{{.marker}}": "two"}}
+	require.NoError(t, s.Collect(ctx, first))
+	require.NoError(t, s.Collect(ctx, second))
+	require.NoError(t, s.Close(ctx))
+}
+
 func TestRestSinkProvision(t *testing.T) {
 	s := &RestSink{}
 	require.EqualError(t, s.Provision(context.Background(), map[string]any{

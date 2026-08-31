@@ -14,7 +14,11 @@
 | headers | 是 | 要为 HTTP 请求设置的其它 HTTP 头。支持动态获取。 |
 | debugResp | 是 | 控制是否将响应信息打印到控制台中。 如果将其设置为 `true`，则打印响应。 如果设置为`false`
 ，则跳过打印日志。默认值为 `false`。 |
-| response | 是 | 响应回传配置，用于实现"请求-响应"网关闭环：HTTP 请求完成后，将响应体发布到指定的 MQTT 主题。配置项包括 `type`（目前仅支持 `mqtt`）与 `mqtt`（MQTT 回传配置）。详情请见[响应回传（请求-响应网关）](#响应回传请求-响应网关)。 |
+| response | 是 | 响应回传配置，用于实现"请求-响应"网关：HTTP 请求完成后，将响应体发布到指定的 MQTT 主题。配置项包括 `type`（目前仅支持 `mqtt`）与 `mqtt`（MQTT 回传配置）。详情请见[响应回传（请求-响应网关）](#响应回传请求-响应网关)。 |
+| response.mqtt.forwardStatus | 是 | 为 `true` 时将回传体包装为 `{status, body}`，保留 HTTP 状态码；默认 `false`，保持历史原始响应体行为。 |
+| response.mqtt.forwardHeaders | 是 | 为 `true` 时在回传包装体中增加 HTTP `headers`；默认 `false`。 |
+| response.mqtt.forwardErrors | 是 | 为 `true` 时将非 2xx HTTP 响应也回传；默认 `false`，保持历史 sink 错误语义。 |
+| response.mqtt.forwardEmpty | 是 | 为 `true` 时即使 HTTP body 为空也回传；默认 `false`。 |
 | certificationPath | 是 | 证书路径。可以为绝对路径，也可以为相对路径。如果指定的是相对路径，那么父目录为执行 `kuiperd`
 命令的路径。比如，如果你在 `/var/kuiper` 中运行 `bin/kuiperd` ，那么父目录为 `/var/kuiper`; 如果运行从 `/var/kuiper/bin`
 中运行`./kuiperd`，那么父目录为 `/var/kuiper/bin`。 |

@@ -133,11 +133,28 @@ type ResponseMqttConf struct {
 	CorrelationData string `json:"correlationData,omitempty"`
 	Qos             byte   `json:"qos,omitempty"`
 	Retained        bool   `json:"retained,omitempty"`
+	// Optional gateway metadata behavior. Defaults preserve the legacy raw-body relay.
+	ForwardStatus  bool `json:"forwardStatus,omitempty"`
+	ForwardHeaders bool `json:"forwardHeaders,omitempty"`
+	ForwardErrors  bool `json:"forwardErrors,omitempty"`
+	ForwardEmpty   bool `json:"forwardEmpty,omitempty"`
 }
 
 const (
 	DefaultTimeout = 5000 * time.Millisecond
 )
+
+// normalizeHTTPMethod is shared by static and dynamic REST sink methods.
+// PATCH and HEAD are documented REST methods and were previously rejected.
+func normalizeHTTPMethod(method string) (string, error) {
+	method = strings.ToUpper(strings.TrimSpace(method))
+	switch method {
+	case http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead:
+		return method, nil
+	default:
+		return "", fmt.Errorf("Not supported HTTP method %s.", method)
+	}
+}
 
 type bodyResp struct {
 	Code int `json:"code"`
@@ -171,12 +188,11 @@ func (cc *ClientConf) InitConf(ctx api.StreamContext, device string, props map[s
 		return fmt.Errorf("url is required")
 	}
 	c.Url = c.Url + device
-	switch strings.ToUpper(c.Method) {
-	case http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete:
-		c.Method = strings.ToUpper(c.Method)
-	default:
-		return fmt.Errorf("Not supported HTTP method %s.", c.Method)
+	method, err := normalizeHTTPMethod(c.Method)
+	if err != nil {
+		return err
 	}
+	c.Method = method
 	if c.Timeout < 0 {
 		return fmt.Errorf("timeout must be greater than or equal to 0")
 	}
@@ -201,7 +217,7 @@ func (cc *ClientConf) InitConf(ctx api.StreamContext, device string, props map[s
 	default:
 		return fmt.Errorf("Invalid response type value %v.", c.ResponseType)
 	}
-	err := httpx.IsHttpUrl(c.Url)
+	err = httpx.IsHttpUrl(c.Url)
 	if err != nil {
 		return err
 	}

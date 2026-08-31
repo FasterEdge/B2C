@@ -16,9 +16,11 @@ package http
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	stdhttp "net/http"
 	"regexp"
 	"strings"
 
@@ -26,13 +28,13 @@ import (
 	"github.com/pingcap/failpoint"
 
 	"github.com/lf-edge/ekuiper/v2/internal/io/mqtt"
+	"github.com/lf-edge/ekuiper/v2/internal/pkg/httpx"
 	"github.com/lf-edge/ekuiper/v2/pkg/connection"
 	"github.com/lf-edge/ekuiper/v2/pkg/errorx"
 )
 
 type RestSink struct {
 	*ClientConf
-	noFormdataTemplate bool
 	headerTemplates    map[string]restHeaderTemplate
 	hasHeaderTemplates bool
 	hasDynamicHeaders  bool
@@ -47,10 +49,14 @@ type responseMqttPublisher struct {
 	cli *mqtt.Connection
 	// topicTemplate is the configured topic, supporting dynamic props like
 	// {{.responseTopic}}. It is resolved per message against the rule output.
-	topicTemplate string
-	corrTemplate  string
-	qos           byte
-	retained      bool
+	topicTemplate  string
+	corrTemplate   string
+	qos            byte
+	retained       bool
+	forwardStatus  bool
+	forwardHeaders bool
+	forwardErrors  bool
+	forwardEmpty   bool
 }
 
 var (
@@ -237,12 +243,16 @@ func (r *RestSink) Connect(ctx api.StreamContext, sch api.StatusChangeHandler) e
 			return fmt.Errorf("rest sink response: connection is not mqtt")
 		}
 		r.responseMqtt = &responseMqttPublisher{
-			cw:            cw,
-			cli:           cli,
-			topicTemplate: rc.Topic,
-			corrTemplate:  rc.CorrelationData,
-			qos:           rc.Qos,
-			retained:      rc.Retained,
+			cw:             cw,
+			cli:            cli,
+			topicTemplate:  rc.Topic,
+			corrTemplate:   rc.CorrelationData,
+			qos:            rc.Qos,
+			retained:       rc.Retained,
+			forwardStatus:  rc.ForwardStatus,
+			forwardHeaders: rc.ForwardHeaders,
+			forwardErrors:  rc.ForwardErrors,
+			forwardEmpty:   rc.ForwardEmpty,
 		}
 		ctx.GetLogger().Debugf("rest sink response mqtt connected to %s", rc.Server)
 	}
@@ -259,10 +269,13 @@ func (r *RestSink) Collect(ctx api.StreamContext, item api.RawTuple) error {
 	formData := r.config.FormData
 
 	dp, hasDynamicProps := item.(api.HasDynamicProps)
+	dynamicURL := false
+	dynamicBodyType := false
 	if hasDynamicProps {
 		nb, ok := dp.DynamicProps(bodyType)
 		if ok {
 			bodyType = nb
+			dynamicBodyType = true
 		}
 		nm, ok := dp.DynamicProps(method)
 		if ok {
@@ -271,19 +284,39 @@ func (r *RestSink) Collect(ctx api.StreamContext, item api.RawTuple) error {
 		nu, ok := dp.DynamicProps(u)
 		if ok {
 			u = nu
+			dynamicURL = true
 		}
-		if bodyType == "formdata" && !r.noFormdataTemplate {
-			r.noFormdataTemplate = true
+		if bodyType == "formdata" {
+			// Resolve form fields per tuple. Keeping this local avoids a data race
+			// and prevents one tuple from changing another tuple's templates.
 			formData = make(map[string]string, len(r.config.FormData))
 			for k, v := range r.config.FormData {
-				nv, ok := dp.DynamicProps(v)
-				if ok {
+				if nv, ok := dp.DynamicProps(v); ok {
 					formData[k] = nv
-					r.noFormdataTemplate = false
 				} else {
 					formData[k] = v
 				}
 			}
+		}
+	}
+
+	normalizedMethod, validationErr := normalizeHTTPMethod(method)
+	if validationErr != nil {
+		return fmt.Errorf("invalid dynamic method: %w", validationErr)
+	}
+	method = normalizedMethod
+	bodyType = strings.ToLower(strings.TrimSpace(bodyType))
+	if _, ok := bodyTypeMap[bodyType]; !ok {
+		return fmt.Errorf("invalid dynamic body type %s", bodyType)
+	}
+	if dynamicBodyType {
+		if required, ok := bodyTypeFormat[bodyType]; ok && strings.ToLower(r.config.Format) != required {
+			return fmt.Errorf("format must be %s if bodyType is %s", required, bodyType)
+		}
+	}
+	if dynamicURL {
+		if err := httpx.IsHttpUrl(u); err != nil {
+			return fmt.Errorf("invalid dynamic url %s: %w", u, err)
 		}
 	}
 
@@ -340,8 +373,20 @@ func (r *RestSink) Collect(ctx api.StreamContext, item api.RawTuple) error {
 			}
 		}
 		_, b, err := r.parseResponse(ctx, resp, "", r.config.DebugResp || r.responseMqtt != nil, true)
+		// A response relay is opt-in for errors. Preserve legacy sink behavior
+		// unless forwardErrors is explicitly enabled.
+		if err != nil && resp.StatusCode >= 300 && r.responseMqtt != nil && r.responseMqtt.forwardErrors {
+			if len(relayBody) > 0 || r.responseMqtt.forwardEmpty {
+				if publishErr := r.responseMqtt.Publish(ctx, item, relayBody, resp); publishErr != nil {
+					return errorx.NewIOErr(fmt.Sprintf("rest sink response relay failed: %v", publishErr))
+				}
+				return nil
+			}
+			// Do not silently swallow an error when there is no body to relay.
+			return fmt.Errorf(`rest sink response error: status=%d. | method=%s path="%s"`, resp.StatusCode, method, u)
+		}
 		// do not record response body error as it is not an error in the sink action.
-		if err != nil && !strings.HasPrefix(err.Error(), BODY_ERR) {
+		if err != nil {
 			if strings.HasPrefix(err.Error(), BODY_ERR) {
 				logger.Warnf("rest sink response body error: %v", err)
 			} else {
@@ -359,8 +404,8 @@ func (r *RestSink) Collect(ctx api.StreamContext, item api.RawTuple) error {
 		}
 		// Relay the HTTP response back to the caller through the configured
 		// reply channel (request-reply gateway pattern).
-		if r.responseMqtt != nil && len(relayBody) > 0 {
-			if err := r.responseMqtt.Publish(ctx, item, relayBody); err != nil {
+		if r.responseMqtt != nil && (len(relayBody) > 0 || r.responseMqtt.forwardEmpty) {
+			if err := r.responseMqtt.Publish(ctx, item, relayBody, resp); err != nil {
 				logger.Errorf("rest sink response relay failed: %v", err)
 				return errorx.NewIOErr(fmt.Sprintf("rest sink response relay failed: %v", err))
 			}
@@ -372,7 +417,7 @@ func (r *RestSink) Collect(ctx api.StreamContext, item api.RawTuple) error {
 // Publish relays the HTTP response body back to the caller via MQTT. The topic
 // and correlation data are resolved from the rule output per message, so a
 // request's MQTT v5 response topic / correlation data can be echoed back.
-func (p *responseMqttPublisher) Publish(ctx api.StreamContext, item api.RawTuple, body []byte) error {
+func (p *responseMqttPublisher) Publish(ctx api.StreamContext, item api.RawTuple, body []byte, resp *stdhttp.Response) error {
 	topic := p.topicTemplate
 	props := make(map[string]string, 2)
 	if dp, ok := item.(api.HasDynamicProps); ok {
@@ -388,8 +433,34 @@ func (p *responseMqttPublisher) Publish(ctx api.StreamContext, item api.RawTuple
 	if topic == "" {
 		return fmt.Errorf("response topic is empty")
 	}
+	if p.forwardStatus || p.forwardHeaders {
+		var err error
+		body, err = p.buildEnvelope(body, resp)
+		if err != nil {
+			return fmt.Errorf("encode response relay: %w", err)
+		}
+	}
 	ctx.GetLogger().Debugf("relaying rest response to mqtt topic %s, body %s", topic, string(body))
 	return p.cli.Publish(ctx, topic, p.qos, p.retained, body, props)
+}
+
+func (p *responseMqttPublisher) buildEnvelope(body []byte, resp *stdhttp.Response) ([]byte, error) {
+	var envelopeBody any = string(body)
+	if len(body) > 0 && json.Valid(body) {
+		envelopeBody = json.RawMessage(body)
+	}
+	envelope := map[string]any{"body": envelopeBody}
+	if p.forwardStatus && resp != nil {
+		envelope["status"] = resp.StatusCode
+	}
+	if p.forwardHeaders && resp != nil {
+		headers := make(map[string][]string, len(resp.Header))
+		for key, values := range resp.Header {
+			headers[key] = append([]string(nil), values...)
+		}
+		envelope["headers"] = headers
+	}
+	return json.Marshal(envelope)
 }
 
 func (r *RestSink) prepareHeaders(item api.RawTuple) map[string]string {

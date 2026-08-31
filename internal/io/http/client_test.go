@@ -75,6 +75,11 @@ func TestInitConf(t *testing.T) {
 	c = &ClientConf{}
 	require.NoError(t, c.InitConf(ctx, "", m))
 
+	for _, method := range []string{"patch", "HEAD"} {
+		c = &ClientConf{}
+		require.NoError(t, c.InitConf(ctx, "", map[string]interface{}{"method": method}), method)
+	}
+
 	m = map[string]interface{}{
 		"bodyType": "123",
 	}
