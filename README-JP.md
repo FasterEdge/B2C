@@ -79,7 +79,7 @@ eKuiperのエッジでの処理により、システムの応答遅延を大幅�
 - [会議の議事録](https://wiki.lfedge.org/display/EKUIPER/Weekly+Development+Meeting)
 
 ### 貢献
-ご協力ありがとうございます！詳細については、[CONTRIBUTING.md](./docs/en_US/CONTRIBUTING.md)を参照してください。
+ご協力ありがとうございます！問題の報告やプルリクエストはいつでも歓迎します。
 
 ## パフォーマンステスト結果
 
