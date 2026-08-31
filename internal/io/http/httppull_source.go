@@ -118,7 +118,7 @@ func (hps *HttpPullSource) doPullInternal(ctx api.StreamContext, c *ClientConf, 
 			return nil, "", err
 		}
 	}
-	resp, err := hps.Send(ctx, c.config.BodyType, c.config.Method, newUrl, headers, nil, "", []byte(newBody))
+	resp, err := hps.Send(ctx, c.config.BodyType, c.config.Method, newUrl, headers, nil, "", "", []byte(newBody))
 	if err != nil {
 		return nil, "", err
 	}

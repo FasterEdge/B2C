@@ -11,6 +11,9 @@ The action is used for publish output message into a RESTful API.
 | headers              | true     | The additional headers to be set for the HTTP request.                                                                                                                                                                                                                                                                                                                                            |
 | formdata             | true     | If bodyType is formdata, this property specifies key-value pairs for form data. The encoded body (in bytes) will be transmitted as a file. Each key-value pair represents one part of the multipart form.                                                                                                                                                                                         |
 | fileFieldName        | true     | Specifies the form field name when uploading files via multipart/form-data                                                                                                                                                                                                                                                                                                                        |
+| fileName             | true     | When bodyType is formdata, the file name of the multipart file attachment. Supports dynamic props (e.g. `{{.filename}}`). Defaults to a millisecond timestamp.                                                                                                                                                                                                                                     |
+| query                | true     | Structured URL query parameters as key-value pairs, appended (not overwriting) to the URL query string. Supports dynamic props. Compared to embedding params in `url`, this property handles URL encoding automatically.                                                                                                                                                                            |
+| metaHeaders          | true     | Maps source metadata onto outgoing HTTP headers: the key is the HTTP header name and the value is the metadata key (e.g. MQTT v5 `correlationData` / `responseTopic`, accessible via SQL `meta()`). The header is written only when the metadata entry exists, and the static headers configuration is never mutated.                                                                               |
 | debugResp            | true     | Control if print the response information into the console. If set it to `true`, then print response; If set to `false`, then skip print log. The default is `false`.                                                                                                                                                                                                                             |
 | certificationPath    | true     | The certification path. It can be an absolute path, or a relative path. If it is an relative path, then the base path is where you excuting the `kuiperd` command. For example, if you run `bin/kuiperd` from `/var/kuiper`, then the base path is `/var/kuiper`; If you run `./kuiperd` from `/var/kuiper/bin`, then the base path is `/var/kuiper/bin`.                                         |
 | privateKeyPath       | true     | The private key path. It can be either absolute path, or relative path, which is similar to use of certificationPath.                                                                                                                                                                                                                                                                             |
@@ -180,3 +183,55 @@ To upload data as files to an HTTP server, use `bodyType=formdata` configuration
 ```
 
 In this example, the format `delimited` will encode the content into csv which containing 10 records each and upload.
+
+**Custom file name**: the default file name is a millisecond timestamp; use `fileName` to customize it, with dynamic props support:
+
+```json
+{
+  "rest": {
+    "url": "http://yoururlhere.com/upload",
+    "method": "post",
+    "bodyType": "formdata",
+    "fileFieldName": "file1",
+    "fileName": "{{.deviceId}}-{{.seq}}.csv",
+    "formData": {
+      "deviceId": "{{.deviceId}}"
+    }
+  }
+}
+```
+
+## Structured query parameters and metadata headers
+
+**query**: appends URL query parameters as key-value pairs (without overwriting the query string already present in `url`, and handles URL encoding automatically). Supports dynamic props:
+
+```json
+{
+  "rest": {
+    "url": "http://yoururlhere.com/api",
+    "method": "get",
+    "query": {
+      "device": "{{.deviceId}}",
+      "timestamp": "{{.ts}}"
+    }
+  }
+}
+```
+
+**metaHeaders**: maps source metadata (e.g. MQTT v5 `correlationData` / `responseTopic`, exposed through SQL `meta()`) onto outgoing HTTP headers. Headers are only written when the metadata entry exists, and the static `headers` configuration is never mutated:
+
+```json
+{
+  "rest": {
+    "url": "http://yoururlhere.com/api",
+    "method": "post",
+    "headers": {
+      "X-API-Key": "secret"
+    },
+    "metaHeaders": {
+      "X-Correlation-Id": "correlationData",
+      "X-Response-Topic": "responseTopic"
+    }
+  }
+}
+```

@@ -73,7 +73,7 @@ func TestErr(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := SendWithFormData(conf.Log, nil, "formdata", "POST", test.u, nil, nil, "", test.data)
+			_, err := SendWithFormData(conf.Log, nil, "formdata", "POST", test.u, nil, nil, "", "", test.data)
 			require.EqualError(t, err, test.err)
 		})
 	}
@@ -186,13 +186,13 @@ func TestSend(t *testing.T) {
 
 	// Test SendWithFormData
 	// Case 1: normal form data
-	resp, err = SendWithFormData(conf.Log, http.DefaultClient, "form", "POST", ts.URL, nil, map[string]string{"key": "value"}, "", []byte("data"))
+	resp, err = SendWithFormData(conf.Log, http.DefaultClient, "form", "POST", ts.URL, nil, map[string]string{"key": "value"}, "", "", []byte("data"))
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	// Case 2: mixed form data
-	resp, err = SendWithFormData(conf.Log, http.DefaultClient, "formdata", "POST", ts.URL, nil, map[string]string{"key": "value"}, "file", []byte("filecontent"))
+	resp, err = SendWithFormData(conf.Log, http.DefaultClient, "formdata", "POST", ts.URL, nil, map[string]string{"key": "value"}, "file", "report.csv", []byte("filecontent"))
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)

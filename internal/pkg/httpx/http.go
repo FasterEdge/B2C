@@ -42,10 +42,14 @@ var BodyTypeMap = map[string]string{"none": "", "text": "text/plain", "json": "a
 
 // Send v must be a []byte or map
 func Send(logger api.Logger, client *http.Client, bodyType string, method string, u string, headers map[string]string, v any) (*http.Response, error) {
-	return SendWithFormData(logger, client, bodyType, method, u, headers, nil, "", v)
+	return SendWithFormData(logger, client, bodyType, method, u, headers, nil, "", "", v)
 }
 
-func SendWithFormData(logger api.Logger, client *http.Client, bodyType string, method string, u string, headers map[string]string, formData map[string]string, formFieldName string, v any) (*http.Response, error) {
+// SendWithFormData sends an HTTP request. When bodyType is "formdata", the
+// payload is transmitted as a file attachment whose field name is formFieldName
+// and file name is fileName (empty falls back to the legacy millisecond
+// timestamp file name).
+func SendWithFormData(logger api.Logger, client *http.Client, bodyType string, method string, u string, headers map[string]string, formData map[string]string, formFieldName string, fileName string, v any) (*http.Response, error) {
 	var req *http.Request
 	var err error
 	switch bodyType {
@@ -82,7 +86,10 @@ func SendWithFormData(logger api.Logger, client *http.Client, bodyType string, m
 	case "formdata":
 		var requestBody bytes.Buffer
 		writer := multipart.NewWriter(&requestBody)
-		fileField, err := writer.CreateFormFile(formFieldName, strconv.FormatInt(timex.GetNowInMilli(), 10))
+		if fileName == "" {
+			fileName = strconv.FormatInt(timex.GetNowInMilli(), 10)
+		}
+		fileField, err := writer.CreateFormFile(formFieldName, fileName)
 		if err != nil {
 			return nil, fmt.Errorf("fail to create file field: %v", err)
 		}

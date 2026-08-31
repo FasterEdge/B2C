@@ -113,7 +113,7 @@ func doPull(ctx api.StreamContext, c *ClientConf, lastMD5 string) ([]map[string]
 		headers = state.headers
 		newBody = state.body
 	}
-	resp, err := c.Send(ctx, c.config.BodyType, c.config.Method, c.config.Url, headers, nil, "", []byte(newBody))
+	resp, err := c.Send(ctx, c.config.BodyType, c.config.Method, c.config.Url, headers, nil, "", "", []byte(newBody))
 	if err != nil {
 		return nil, "", err
 	}

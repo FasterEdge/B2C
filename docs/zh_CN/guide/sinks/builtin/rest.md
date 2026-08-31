@@ -9,6 +9,9 @@
 | bodyType      | 是    | 消息体的类型。 当前，支持以下类型："none", "json", "text", "html", "xml", "javascript", "form", "binary" 和 "formdata"。 对于 "get" 和 "head"，不需要正文，因此默认值为 "none"。 对于其他 http 方法，默认值为 "json"。对于 "html"，"xml" 和 "javascript"，必须仔细设置 dataTemplate 以确保格式正确。支持动态获取。 |
 | formdata      | true | 设置 bodyType 为 formdata 时可用。本属性用于设置表单数据的键值对。编码后的内容（字节形式）将作为文件附件传输，而每个键值对代表multipart表单的一个部分                                                                                                                                                |
 | fileFieldName | true | 设置 bodyType 为 formdata 时可用，定义表单提交中文件部分的参数名称                                                                                                                                                                                              |
+| fileName | true | 设置 bodyType 为 formdata 时可用，定义 multipart 文件附件的文件名，支持动态获取（如 `{{.filename}}`）。缺省时使用毫秒时间戳作为文件名。                                                                                                                                                                                              |
+| query | true | 结构化 URL 查询参数键值对，将追加（而非覆盖）到 URL 的 query string 上，支持动态获取。与把参数拼进 `url` 相比，本配置会自动处理 URL 编码。                                                                                                                                                                                              |
+| metaHeaders | true | 将输入源元数据映射为请求头：键为 HTTP 请求头名称，值为元数据键（如 MQTT v5 的 `correlationData`、`responseTopic`，可通过 SQL 的 `meta()` 获取）。仅当元数据存在时才写入，且不会污染静态 headers 配置。                                                                                                                                                                                              |
 
 | timeout | 是 | HTTP 请求超时的时间（毫秒），默认为5000毫秒 |
 | headers | 是 | 要为 HTTP 请求设置的其它 HTTP 头。支持动态获取。 |
@@ -186,6 +189,58 @@ Text mode
 ```
 
 本示例中，每10条记录将生成一个 CSV 文件上传。
+
+**自定义文件名**：默认文件名是毫秒时间戳；通过 `fileName` 可自定义文件名，支持动态获取：
+
+```json
+{
+  "rest": {
+    "url": "http://yoururlhere.com/upload",
+    "method": "post",
+    "bodyType": "formdata",
+    "fileFieldName": "file1",
+    "fileName": "{{.deviceId}}-{{.seq}}.csv",
+    "formData": {
+      "deviceId": "{{.deviceId}}"
+    }
+  }
+}
+```
+
+## 结构化查询参数与元数据请求头
+
+**query**：以键值对形式追加 URL 查询参数（不会覆盖 `url` 中已有的 query string，且自动处理 URL 编码），支持动态获取：
+
+```json
+{
+  "rest": {
+    "url": "http://yoururlhere.com/api",
+    "method": "get",
+    "query": {
+      "device": "{{.deviceId}}",
+      "timestamp": "{{.ts}}"
+    }
+  }
+}
+```
+
+**metaHeaders**：将输入源元数据（如 MQTT v5 的 `correlationData`、`responseTopic`，可通过 SQL `meta()` 提取）映射为出站请求头。仅当元数据存在时才写入，且不会污染静态 `headers`：
+
+```json
+{
+  "rest": {
+    "url": "http://yoururlhere.com/api",
+    "method": "post",
+    "headers": {
+      "X-API-Key": "secret"
+    },
+    "metaHeaders": {
+      "X-Correlation-Id": "correlationData",
+      "X-Response-Topic": "responseTopic"
+    }
+  }
+}
+```
 
 ## 响应回传与协议转发（请求-响应网关）
 

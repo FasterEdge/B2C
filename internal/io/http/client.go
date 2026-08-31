@@ -88,10 +88,15 @@ type RawConf struct {
 	BodyType      string            `json:"bodyType"`
 	Format        string            `json:"format"`
 	Headers       map[string]string `json:"headers"`
+	Query         map[string]string `json:"query,omitempty"`
 	FormData      map[string]string `json:"formData"`
 	FileFieldName string            `json:"fileFieldName"`
-	Timeout       cast.DurationConf `json:"timeout"`
-	Incremental   bool              `json:"incremental"`
+	FileName      string            `json:"fileName,omitempty"`
+	// MetaHeaders maps an outgoing HTTP header name to a source metadata key
+	// (e.g. "X-Correlation-Id" -> "correlationData"), exposed via meta() in SQL.
+	MetaHeaders map[string]string `json:"metaHeaders,omitempty"`
+	Timeout     cast.DurationConf `json:"timeout"`
+	Incremental bool              `json:"incremental"`
 
 	OAuth      map[string]map[string]interface{} `json:"oauth"`
 	SendSingle bool                              `json:"sendSingle"`
@@ -289,8 +294,8 @@ func (cc *ClientConf) Conn(ctx api.StreamContext) error {
 	return nil
 }
 
-func (cc *ClientConf) Send(ctx api.StreamContext, bodyType string, method string, u string, headers map[string]string, formData map[string]string, formFieldName string, v any) (*http.Response, error) {
-	resp, err := httpx.SendWithFormData(ctx.GetLogger(), cc.client, bodyType, method, u, headers, formData, formFieldName, v)
+func (cc *ClientConf) Send(ctx api.StreamContext, bodyType string, method string, u string, headers map[string]string, formData map[string]string, formFieldName string, fileName string, v any) (*http.Response, error) {
+	resp, err := httpx.SendWithFormData(ctx.GetLogger(), cc.client, bodyType, method, u, headers, formData, formFieldName, fileName, v)
 	// Check token refresh after send
 	if cc.tokenRefreshDue(cc.oauthRuntimeState()) {
 		cc.refreshToken(ctx)

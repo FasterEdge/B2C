@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -255,6 +256,113 @@ func TestRestSinkProvision(t *testing.T) {
 		"bodyType": "form",
 		"format":   "json",
 	}), "format must be urlencoded if bodyType is form")
+}
+
+func TestRestSinkQueryParams(t *testing.T) {
+	var gotRawQuery string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotRawQuery = r.URL.RawQuery
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	ctx := mockContext.NewMockContext("queryParams", "op")
+	s := &RestSink{}
+	require.NoError(t, s.Provision(ctx, map[string]any{
+		"url":    fmt.Sprintf("%s/path?existing=1", ts.URL),
+		"method": "get",
+		"query": map[string]string{
+			"device":  "dev-01",
+			"session": "{{.session}}",
+		},
+	}))
+	require.NoError(t, s.Connect(ctx, func(string, string) {}))
+	data := &xsql.RawTuple{
+		Rawdata: []byte(`{"a":1}`),
+		Props:   map[string]string{"{{.session}}": "sess-9"},
+	}
+	require.NoError(t, s.Collect(ctx, data))
+	require.NoError(t, s.Close(ctx))
+
+	q, err := url.ParseQuery(gotRawQuery)
+	require.NoError(t, err)
+	require.Equal(t, "1", q.Get("existing"), "pre-existing URL query params must be preserved")
+	require.Equal(t, "dev-01", q.Get("device"))
+	require.Equal(t, "sess-9", q.Get("session"), "query value templates must be resolved per tuple")
+}
+
+func TestRestSinkMetaHeaders(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Correlation-Id") != "corr-42" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("X-Response-Topic") != "reply/dev/1" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("X-Static") != "fixed" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	ctx := mockContext.NewMockContext("metaHeaders", "op")
+	s := &RestSink{}
+	require.NoError(t, s.Provision(ctx, map[string]any{
+		"url":    ts.URL,
+		"method": "get",
+		"headers": map[string]any{
+			"X-Static": "fixed",
+		},
+		"metaHeaders": map[string]string{
+			"X-Correlation-Id": "correlationData",
+			"X-Response-Topic": "responseTopic",
+		},
+	}))
+	require.NoError(t, s.Connect(ctx, func(string, string) {}))
+	data := &xsql.RawTuple{
+		Rawdata: []byte(`{"a":1}`),
+		Metadata: xsql.Metadata{
+			"correlationData": "corr-42",
+			"responseTopic":   "reply/dev/1",
+		},
+	}
+	require.NoError(t, s.Collect(ctx, data))
+	require.NoError(t, s.Close(ctx))
+}
+
+func TestRestSinkFileUploadName(t *testing.T) {
+	var gotFileName string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, header, err := r.FormFile("payload")
+		if err == nil {
+			gotFileName = header.Filename
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	ctx := mockContext.NewMockContext("fileUploadName", "op")
+	s := &RestSink{}
+	require.NoError(t, s.Provision(ctx, map[string]any{
+		"url":           ts.URL,
+		"method":        "post",
+		"bodyType":      "formdata",
+		"fileFieldName": "payload",
+		"fileName":      "{{.filename}}",
+		"sendSingle":    true,
+	}))
+	require.NoError(t, s.Connect(ctx, func(string, string) {}))
+	data := &xsql.RawTuple{
+		Rawdata: []byte{0x1, 0x2, 0x3},
+		Props:   map[string]string{"{{.filename}}": "report-0815.csv"},
+	}
+	require.NoError(t, s.Collect(ctx, data))
+	require.NoError(t, s.Close(ctx))
+	require.Equal(t, "report-0815.csv", gotFileName)
 }
 
 func TestRestSinkCollect(t *testing.T) {

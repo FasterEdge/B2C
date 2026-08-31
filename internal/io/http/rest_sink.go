@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	stdhttp "net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -267,6 +268,8 @@ func (r *RestSink) Collect(ctx api.StreamContext, item api.RawTuple) error {
 	u := r.config.Url
 	headers := r.prepareHeaders(item)
 	formData := r.config.FormData
+	query := r.config.Query
+	fileName := r.config.FileName
 
 	dp, hasDynamicProps := item.(api.HasDynamicProps)
 	dynamicURL := false
@@ -297,6 +300,22 @@ func (r *RestSink) Collect(ctx api.StreamContext, item api.RawTuple) error {
 					formData[k] = v
 				}
 			}
+			if fileName != "" {
+				if nf, ok := dp.DynamicProps(fileName); ok {
+					fileName = nf
+				}
+			}
+		}
+		if len(query) > 0 {
+			resolved := make(map[string]string, len(query))
+			for k, v := range query {
+				if nv, ok := dp.DynamicProps(v); ok {
+					resolved[k] = nv
+				} else {
+					resolved[k] = v
+				}
+			}
+			query = resolved
 		}
 	}
 
@@ -319,6 +338,19 @@ func (r *RestSink) Collect(ctx api.StreamContext, item api.RawTuple) error {
 			return fmt.Errorf("invalid dynamic url %s: %w", u, err)
 		}
 	}
+	if len(query) > 0 {
+		merged, err := mergeQueryParams(u, query)
+		if err != nil {
+			return fmt.Errorf("invalid query params: %w", err)
+		}
+		u = merged
+	}
+
+	// Map source metadata (e.g. MQTT v5 responseTopic / correlationData,
+	// exposed through meta() in SQL) onto outgoing HTTP headers. The headers
+	// map is cloned on the first hit so the configured shared map is never
+	// mutated.
+	headers = r.applyMetaHeaders(item, headers)
 
 	switch r.config.Compression {
 	case "zstd":
@@ -333,7 +365,7 @@ func (r *RestSink) Collect(ctx api.StreamContext, item api.RawTuple) error {
 		headers["Content-Encoding"] = "gzip"
 	}
 
-	resp, err := r.Send(ctx, bodyType, method, u, headers, formData, r.config.FileFieldName, item.Raw())
+	resp, err := r.Send(ctx, bodyType, method, u, headers, formData, r.config.FileFieldName, fileName, item.Raw())
 	failpoint.Inject("recoverAbleErr", func() {
 		err = errors.New("connection reset by peer")
 	})
@@ -500,6 +532,59 @@ func cloneHeaders(headers map[string]string) map[string]string {
 		result[k] = v
 	}
 	return result
+}
+
+// mergeQueryParams appends key/value pairs to the query string of an
+// existing URL, preserving params already present in the URL.
+func mergeQueryParams(rawURL string, params map[string]string) (string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	q := parsed.Query()
+	for k, v := range params {
+		q.Set(k, v)
+	}
+	parsed.RawQuery = q.Encode()
+	return parsed.String(), nil
+}
+
+// metaProvider is the minimal duck-typed interface for reading source
+// metadata. api.MetaInfo is not used directly because some tuples (e.g.
+// xsql.RawTuple) expose Meta without the full MetaInfo contract.
+type metaProvider interface {
+	Meta(key, table string) (any, bool)
+}
+
+// applyMetaHeaders maps source metadata keys (e.g. MQTT v5
+// responseTopic/correlationData, exposed via meta() in SQL) onto outgoing
+// HTTP headers. It returns a clone on the first hit so the configured shared
+// headers map is never mutated, preserving the static-headers fast path.
+func (r *RestSink) applyMetaHeaders(item api.RawTuple, headers map[string]string) map[string]string {
+	if len(r.config.MetaHeaders) == 0 {
+		return headers
+	}
+	meta, ok := item.(metaProvider)
+	if !ok {
+		return headers
+	}
+	var merged map[string]string
+	cloned := false
+	for headerName, metaKey := range r.config.MetaHeaders {
+		v, ok := meta.Meta(metaKey, "")
+		if !ok {
+			continue
+		}
+		if !cloned {
+			merged = cloneHeaders(headers)
+			cloned = true
+		}
+		merged[headerName] = fmt.Sprintf("%v", v)
+	}
+	if !cloned {
+		return headers
+	}
+	return merged
 }
 
 func GetSink() api.Sink {
