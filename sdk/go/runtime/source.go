@@ -89,7 +89,7 @@ func (s *sourceRuntime) stop() error {
 	}
 	s.ctx.GetLogger().Info("closed source data channel")
 	reg.Delete(s.key)
-	return nil
+	return err
 }
 
 func (s *sourceRuntime) isRunning() bool {

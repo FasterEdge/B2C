@@ -111,6 +111,60 @@ func TestValIndex(t *testing.T) {
 	}
 }
 
+func TestSliceTupleToMap(t *testing.T) {
+	tuple := &SliceTuple{
+		SourceContent: model.SliceVal{"alice", 42},
+		schemaMap: map[string]int{
+			"name":    0,
+			"age":     1,
+			"missing": 2,
+			"invalid": -1,
+		},
+	}
+
+	require.Equal(t, map[string]any{
+		"name": "alice",
+		"age":  42,
+	}, tuple.ToMap())
+
+	tuple.schemaMap = nil
+	require.Nil(t, tuple.ToMap())
+}
+
+func TestSliceTupleMeta(t *testing.T) {
+	tuple := &SliceTuple{
+		SourceContent: model.SliceVal{"alice", 42},
+		schemaMap: map[string]int{
+			"name":    0,
+			"age":     1,
+			"invalid": -1,
+		},
+	}
+
+	// 命中字段
+	v, ok := tuple.Meta("name", "")
+	require.True(t, ok)
+	require.Equal(t, "alice", v)
+
+	// 未命中
+	_, ok = tuple.Meta("unknown", "")
+	require.False(t, ok)
+
+	// 非法索引
+	_, ok = tuple.Meta("invalid", "")
+	require.False(t, ok)
+
+	// 通配符返回全量 map
+	m, ok := tuple.Meta("*", "")
+	require.True(t, ok)
+	require.Equal(t, map[string]any{"name": "alice", "age": 42}, m)
+
+	// 无 schema
+	tuple.schemaMap = nil
+	_, ok = tuple.Meta("name", "")
+	require.False(t, ok)
+}
+
 func TestTempIndex(t *testing.T) {
 	tt := []struct {
 		name   string

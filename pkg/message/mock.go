@@ -24,14 +24,12 @@ type MockPartialConverter struct {
 	i int
 }
 
-func (m *MockPartialConverter) Encode(ctx api.StreamContext, d any) ([]byte, error) {
-	// TODO implement me
-	panic("implement me")
+func (m *MockPartialConverter) Encode(_ api.StreamContext, _ any) ([]byte, error) {
+	panic("unexpected Encode call in MockPartialConverter")
 }
 
-func (m *MockPartialConverter) Decode(ctx api.StreamContext, b []byte) (any, error) {
-	// TODO implement me
-	panic("implement me")
+func (m *MockPartialConverter) Decode(_ api.StreamContext, _ []byte) (any, error) {
+	panic("unexpected Decode call in MockPartialConverter")
 }
 
 func (m *MockPartialConverter) DecodeField(ctx api.StreamContext, b []byte, f string) (any, error) {

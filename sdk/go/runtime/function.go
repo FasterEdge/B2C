@@ -94,7 +94,6 @@ func (s *funcRuntime) run() {
 	context.Log.Error(err)
 }
 
-// TODO multiple error
 func (s *funcRuntime) stop() error {
 	s.cancel()
 	err := s.ch.Close()
@@ -103,7 +102,7 @@ func (s *funcRuntime) stop() error {
 	}
 	context.Log.Info("closed function data channel")
 	reg.Delete(s.key)
-	return nil
+	return err
 }
 
 func (s *funcRuntime) isRunning() bool {

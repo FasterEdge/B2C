@@ -250,6 +250,15 @@ func TestCollect(t *testing.T) {
 			},
 			c: 3,
 		},
+		{
+			n: "list partial error",
+			d: []map[string]any{
+				{"image": b},
+				{"wrong": "abc"},
+			},
+			c: 1,
+			e: "save tuple 1: found none bytes data [] for path wrong",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.n, func(t *testing.T) {
@@ -276,6 +285,11 @@ func TestCollect(t *testing.T) {
 				assert.Equal(t, test.c, c)
 			} else {
 				assert.EqualError(t, err, test.e)
+				if test.c > 0 {
+					c, countErr := countFiles(Path)
+					assert.NoError(t, countErr)
+					assert.Equal(t, test.c, c)
+				}
 			}
 			timex.Add(5 * time.Minute)
 			// wait for delete files, test max count

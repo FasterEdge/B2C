@@ -128,6 +128,27 @@ func TestSink(t *testing.T) {
 	}
 }
 
+func TestCollectListReturnsPartialErrors(t *testing.T) {
+	s := &RedisSink{}
+	ctx := mockContext.NewMockContext("testSink", "op")
+	require.NoError(t, s.Provision(ctx, map[string]any{
+		"addr":  addr,
+		"field": "id",
+	}))
+	require.NoError(t, s.Connect(ctx, func(string, string) {}))
+	t.Cleanup(func() { _ = s.Close(ctx) })
+
+	items := &xsql.WindowTuples{Content: []xsql.Row{
+		&xsql.Tuple{Message: map[string]any{"id": "partial-success", "value": 1}},
+		&xsql.Tuple{Message: map[string]any{"value": 2}},
+	}}
+	err := s.CollectList(ctx, items)
+	require.EqualError(t, err, "save tuple 1: field id does not exist in data map[value:2]")
+	value, getErr := mr.Get("partial-success")
+	require.NoError(t, getErr)
+	require.JSONEq(t, `{"id":"partial-success","value":1}`, value)
+}
+
 func TestSinkMultipleFields(t *testing.T) {
 	s := &RedisSink{}
 	ctx := mockContext.NewMockContext("testSink", "op")

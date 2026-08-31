@@ -121,15 +121,15 @@ func (r *RedisSink) Collect(ctx api.StreamContext, item api.MessageTuple) error 
 }
 
 func (r *RedisSink) CollectList(ctx api.StreamContext, items api.MessageTupleList) error {
-	// TODO handle partial error
-	items.RangeOfTuples(func(_ int, tuple api.MessageTuple) bool {
-		err := r.save(ctx, tuple.ToMap())
-		if err != nil {
+	var errs []error
+	items.RangeOfTuples(func(index int, tuple api.MessageTuple) bool {
+		if err := r.save(ctx, tuple.ToMap()); err != nil {
 			ctx.GetLogger().Error(err)
+			errs = append(errs, fmt.Errorf("save tuple %d: %w", index, err))
 		}
 		return true
 	})
-	return nil
+	return errors.Join(errs...)
 }
 
 func (r *RedisSink) Close(ctx api.StreamContext) error {

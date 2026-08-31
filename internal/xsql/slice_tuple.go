@@ -114,8 +114,20 @@ func (s *SliceTuple) Value(key, _ string) (any, bool) {
 }
 
 func (s *SliceTuple) Meta(key, table string) (any, bool) {
-	// TODO implement me
-	panic("implement me")
+	if key == "*" {
+		return s.ToMap(), true
+	}
+	if s.schemaMap == nil {
+		return nil, false
+	}
+	index, ok := s.schemaMap[key]
+	if !ok {
+		return nil, false
+	}
+	if index >= 0 && index < len(s.SourceContent) {
+		return s.SourceContent[index], true
+	}
+	return nil, false
 }
 
 func (s *SliceTuple) AliasValue(name string) (any, bool) {
@@ -142,14 +154,19 @@ func (s *SliceTuple) Set(col string, value any) {
 }
 
 func (s *SliceTuple) ToMap() map[string]any {
-	s.ctx.GetLogger().Warnf("calling slice tuple to map func")
-	if s.schemaMap != nil {
-		result := make(map[string]any, len(s.schemaMap))
-		for k, index := range s.schemaMap {
-			result[k] = s.SourceContent[index]
+	if s.ctx != nil {
+		s.ctx.GetLogger().Warnf("calling slice tuple to map func")
+	}
+	if s.schemaMap == nil {
+		return nil
+	}
+	result := make(map[string]any, len(s.schemaMap))
+	for key, index := range s.schemaMap {
+		if index >= 0 && index < len(s.SourceContent) {
+			result[key] = s.SourceContent[index]
 		}
 	}
-	return nil
+	return result
 }
 
 func (s *SliceTuple) Pick(allWildcard bool, cols [][]string, wildcardEmitters map[string]bool, except []string, sendNil bool) {

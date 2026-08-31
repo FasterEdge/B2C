@@ -35,7 +35,8 @@ var langMap = map[string]bool{
 	"python": true,
 }
 
-// Validate TODO validate duplication of source, sink and functions
+// Validate 校验插件元信息：名称、语言、可执行文件，以及
+// source/sink/function 各自内部不允许重复定义（重名注册会互相覆盖）。
 func (p *PluginInfo) Validate(expectedName string) (err error) {
 	defer func() {
 		failpoint.Inject("PluginInfoValidateErr", func() {
@@ -56,6 +57,18 @@ func (p *PluginInfo) Validate(expectedName string) (err error) {
 	}
 	if l, ok := langMap[p.Language]; !ok || !l {
 		return fmt.Errorf("invalid plugin, language '%s' is not supported", p.Language)
+	}
+	for _, group := range [][]string{p.Sources, p.Sinks, p.Functions} {
+		seen := make(map[string]bool, len(group))
+		for _, n := range group {
+			if n == "" {
+				return fmt.Errorf("invalid plugin, empty name in source/sink/function")
+			}
+			if seen[n] {
+				return fmt.Errorf("invalid plugin, duplicated name '%s'", n)
+			}
+			seen[n] = true
+		}
 	}
 	return nil
 }

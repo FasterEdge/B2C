@@ -96,6 +96,39 @@ func TestValidate(t *testing.T) {
 				Functions: []string{"aa"},
 			},
 			err: "invalid plugin, language 'c' is not supported",
+		}, {
+			p: &PluginInfo{
+				PluginMeta: runtime.PluginMeta{
+					Name:       "mirror",
+					Version:    "1.0.0",
+					Language:   "go",
+					Executable: "tt",
+				},
+				Sources: []string{"a", "a"},
+			},
+			err: "invalid plugin, duplicated name 'a'",
+		}, {
+			p: &PluginInfo{
+				PluginMeta: runtime.PluginMeta{
+					Name:       "mirror",
+					Version:    "1.0.0",
+					Language:   "go",
+					Executable: "tt",
+				},
+				Sinks: []string{"b", "b"},
+			},
+			err: "invalid plugin, duplicated name 'b'",
+		}, {
+			p: &PluginInfo{
+				PluginMeta: runtime.PluginMeta{
+					Name:       "mirror",
+					Version:    "1.0.0",
+					Language:   "go",
+					Executable: "tt",
+				},
+				Functions: []string{"c", "c"},
+			},
+			err: "invalid plugin, duplicated name 'c'",
 		},
 	}
 	fmt.Printf("The test bucket size is %d.\n\n", len(tests))

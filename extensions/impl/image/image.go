@@ -207,15 +207,15 @@ func (m *imageSink) Collect(ctx api.StreamContext, item api.MessageTuple) error 
 }
 
 func (m *imageSink) CollectList(ctx api.StreamContext, items api.MessageTupleList) error {
-	// TODO handle partial errors
-	items.RangeOfTuples(func(_ int, tuple api.MessageTuple) bool {
-		err := m.saveFiles(tuple.ToMap())
-		if err != nil {
+	var errs []error
+	items.RangeOfTuples(func(index int, tuple api.MessageTuple) bool {
+		if err := m.saveFiles(tuple.ToMap()); err != nil {
 			ctx.GetLogger().Error(err)
+			errs = append(errs, fmt.Errorf("save tuple %d: %w", index, err))
 		}
 		return true
 	})
-	return nil
+	return errors.Join(errs...)
 }
 
 func (m *imageSink) Close(ctx api.StreamContext) error {
