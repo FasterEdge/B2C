@@ -131,10 +131,16 @@ func InitManager() (*Manager, error) {
 		return nil, fmt.Errorf("error when opening nativePluginStatus: %v", err)
 	}
 	registry := &Manager{symbols: make(map[string]string), funcSymbolsDb: func_db, plgInstallDb: plg_db, plgStatusDb: plg_status_db, pluginDir: pluginDir, pluginConfDir: etcDir, pluginDataDir: dataDir, runtime: make(map[string]*plugin.Plugin)}
-	manager = registry
 
 	plugins := make([]map[string]string, 3)
 	for i := range plugins {
+		// Ensure the per-type plugin directory exists before scanning. On a
+		// fresh install these dirs may be absent (they are not tracked by VCS),
+		// and Register() later needs them writable to drop installed .so files.
+		dir := filepath.Join(pluginDir, plugin2.PluginTypes[plugin2.PluginType(i)])
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, fmt.Errorf("fail to create plugins dir %s: %s", dir, err)
+		}
 		names, err := findAll(plugin2.PluginType(i), pluginDir)
 		if err != nil {
 			return nil, fmt.Errorf("fail to find existing plugins: %s", err)
@@ -142,6 +148,10 @@ func InitManager() (*Manager, error) {
 		plugins[i] = names
 	}
 	registry.plugins = plugins
+	// Only publish the global manager once the registry is fully initialised.
+	// Publishing earlier meant a failed init left a nil-plugins manager behind,
+	// and subsequent get()/Register() panicked with index out of range.
+	manager = registry
 
 	for pf := range plugins[plugin2.FUNCTION] {
 		l := make([]string, 0)
@@ -165,6 +175,13 @@ func findAll(t plugin2.PluginType, pluginDir string) (result map[string]string, 
 	dir := filepath.Join(pluginDir, plugin2.PluginTypes[t])
 	files, err := os.ReadDir(dir)
 	if err != nil {
+		// A missing per-type plugin directory simply means no plugins of that
+		// type are installed. Treat it as an empty list instead of failing the
+		// whole Manager init (which used to leave the global manager in a
+		// half-initialised state and then panic on get()).
+		if os.IsNotExist(err) {
+			return result, nil
+		}
 		return
 	}
 
