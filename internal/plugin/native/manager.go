@@ -218,14 +218,17 @@ func (rr *Manager) store(t plugin2.PluginType, name string, version string) {
 func (rr *Manager) storeSymbols(name string, symbols []string) error {
 	rr.Lock()
 	defer rr.Unlock()
+	// 先全量检查冲突再写入: 若中途遇占用符号直接返回, 前面已写入的
+	// 符号会残留成脏数据 — 失败注册会永久污染符号表 (后续同名注册被
+	// 误拒/符号路由错乱/管理 API 触发持久 DoS)。
 	for _, s := range symbols {
 		if _, ok := rr.symbols[s]; ok {
 			return fmt.Errorf("function name %s already exists", s)
-		} else {
-			rr.symbols[s] = name
 		}
 	}
-
+	for _, s := range symbols {
+		rr.symbols[s] = name
+	}
 	return nil
 }
 
