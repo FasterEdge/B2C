@@ -1,0 +1,23 @@
+# FasterEdge 开源项目 - Github: https://github.com/FasterEdge - Gitee: https://gitee.com/FasterEdge
+# B2C 自有 CI: 主程序编译验证(go build ./cmd/...)。
+# 说明: 本仓为 lf-edge/ekuiper 同步副本(go.mod module 为 github.com/lf-edge/ekuiper/v2)。
+#   - go build ./... 不适用: extensions/* 为 go plugin(main 包无 main 函数);
+#   - go vet ./... 的上游 copylocks 警告为 eKuiper 既有设计(返回值含 RWMutex), 不阻塞;
+#   - 原 ekuiper workflow 均带 if: github.repository == 'lf-edge/ekuiper' 条件(防 fork 触发), 在本仓不运行(no status, 非 failing)。
+name: 'Go 构建检查(build ./cmd/...)'
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  go-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - name: 'go build ./cmd/...'
+        run: go build ./cmd/...
