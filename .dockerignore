@@ -1,0 +1,7 @@
+# FasterEdge 开源项目 - 构建上下文排除
+.git
+.github
+.tmp
+*.md
+Dockerfile*
+.dockerignore
