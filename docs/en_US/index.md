@@ -118,4 +118,4 @@ If you get stuck, check out our community support resources.
 Anyone can contribute to anything, not just code.
 
 - [Edit Doc in GitHub](https://github.com/lf-edge/ekuiper/tree/master/docs)
-- [How to contribute](./CONTRIBUTING.md)
+- [How to contribute](https://github.com/lf-edge/ekuiper/blob/master/CONTRIBUTING.md)

@@ -135,7 +135,7 @@ For most of scripts, you can just start JMeter by default way, such as ``bin/jme
 
 - [EdgeX source with condition](select_edgex_condition_rule.jmx)
 
-  The test script is used for testing [eKuiper EdgeX source](../docs/en_US/rules/sources/edgex.md). To run the script, 
+  The test script is used for testing [eKuiper EdgeX source](../docs/en_US/guide/sources/builtin/edgex.md). To run the script, 
 
   - An EdgeX message bus publish tool should be compiled and run during running test.
 
@@ -153,7 +153,7 @@ For most of scripts, you can just start JMeter by default way, such as ``bin/jme
   
   - Another JMeter mock-up user subscribes MQTT result topic, and assert message number and contents.
   
-- [Multiple EdgeX source configurations](test/select_edgex_another_bus_rule.jmx)
+- Multiple EdgeX source configurations
 
   The test script is used for testing specifying another EdgeX source configurations in eKuiper.
 
@@ -199,7 +199,7 @@ For most of scripts, you can just start JMeter by default way, such as ``bin/jme
     ```
 
 
-- [An end to end portable plugin test](portalbe_end2_end.jmx)
+- [An end to end portable plugin test](portable_end_2_end.jmx)
 
   The script is an end-2-end portable plugin test. It requires a mock http server, and also a plugin which will be built in the `prepare_plugin.sh`.
     ```shell
@@ -209,8 +209,8 @@ For most of scripts, you can just start JMeter by default way, such as ``bin/jme
 
 - [Pull HTTP test](http_pull_rule.jmx)
   
-  The test script verifies HTTP pull source. It sends request to a [server](test/plugins/service/server.go). The script set incremental to true, so it will compare with last result; If response of two requests are the same, then will skip sending out the result.
-  This script also requires to run [server](test/plugins/service/server.go), please refer to last testcase for how to compile and run.
+  The test script verifies HTTP pull source. It sends request to a [server](plugins/service/server.go). The script set incremental to true, so it will compare with last result; If response of two requests are the same, then will skip sending out the result.
+  This script also requires to run [server](plugins/service/server.go), please refer to last testcase for how to compile and run.
   
 - [Binary data type test](http_pull_rule.jmx)
   
@@ -246,7 +246,7 @@ For most of scripts, you can just start JMeter by default way, such as ``bin/jme
 
 - [Connection selector test](edgex_share_connection_sink_rule.jmx)
 
-The test script is used for testing [eKuiper EdgeX connection selector](../docs/en_US/rules/sources/edgex.md#connectionselector). To run the script,
+The test script is used for testing [eKuiper EdgeX connection selector](../docs/en_US/guide/sources/builtin/edgex.md#connection-reusability). To run the script,
 
 - Redis Server need installed since EdgeX are using Redis as message bus
   * modify the `etc/connections/connection.yaml`, make sure the server and port is correct
@@ -281,7 +281,7 @@ The test script is used for testing [eKuiper EdgeX connection selector](../docs/
 
 - [Redis KV Storage](redis_kv_storage.jmx)
 
-The test script is used for testing [Redis KV Storage](../docs/en_US/operation/config/configuration_file.md#redis). To run the script,
+The test script is used for testing [Redis KV Storage](../docs/en_US/configuration/global_configurations.md#redis). To run the script,
 
 - Redis Server need installed since eKuiper will use Redis as kv storage 
   * modify the `etc/kuiper.yaml`, make sure type is set to ``redis``, and server, port and password is correct

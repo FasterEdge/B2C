@@ -113,4 +113,4 @@ LF Edge eKuiper 是 Golang 实现的轻量级物联网边缘分析、流式处�
 任何人都可以参与项目，可通过贡献代码或者文档，回答问题等任何方式加入社区。
 
 - [编辑文档](https://github.com/lf-edge/ekuiper/tree/master/docs)
-- [如何参与](./CONTRIBUTING.md)
+- [如何参与](https://github.com/lf-edge/ekuiper/blob/master/CONTRIBUTING.md)

@@ -94,4 +94,4 @@ docker restart ekuiper
 ## 另请参阅
 
 - [安装指南](../installation.md)
-- [REST API 参考](../api/restapi.md)
+- [REST API 参考](../api/restapi/overview.md)
