@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   check_licenses:
+    if: github.repository_owner == 'lf-edge'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
