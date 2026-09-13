@@ -12,6 +12,7 @@ permissions: write-all
 
 jobs:
   release:
+    if: github.repository_owner == 'lf-edge'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

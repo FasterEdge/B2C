@@ -22,6 +22,7 @@ permissions:
 
 jobs:
   run_unit_tests:
+    if: github.repository_owner == 'lf-edge'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -126,9 +127,11 @@ jobs:
           path: fvt_coverage.xml
 
   run_fvt_tests:
+    if: github.repository_owner == 'lf-edge'
     uses: ./.github/workflows/run_fvt_tests.yaml
 
   run_kafka_fvt_tests:
+    if: github.repository_owner == 'lf-edge'
     name: Run Kafka fvt tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -190,6 +193,7 @@ jobs:
         run: docker rm -f redpanda
 
   upload_coverage:
+    if: github.repository_owner == 'lf-edge'
     needs:
       - run_unit_tests
       - run_fvt_tests

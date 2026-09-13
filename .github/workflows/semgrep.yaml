@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: returntocorp/semgrep
-    if: (github.actor != 'dependabot[bot]')
+    if: github.repository_owner == 'lf-edge' && github.actor != 'dependabot[bot]'
     steps:
       - uses: actions/checkout@v3
       - run: semgrep scan --config=.semgrep --error
