@@ -95,7 +95,7 @@ func (f *OnnxFunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 			inputTensors = append(inputTensors, input)
 		case ort.TensorElementDataTypeFloat16: // not support
 			notSupportedDataLen = 2
-			value, err := cast.ToTypedSlice(args, func(input any, sn cast.Strictness) (interface{}, error) {
+			value, err := cast.ToTypedSlice(arg, func(input any, sn cast.Strictness) (interface{}, error) {
 				f32, err := cast.ToFloat32(input, sn)
 				if err != nil {
 					return nil, err
@@ -132,7 +132,7 @@ func (f *OnnxFunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 			}
 			inputTensors = append(inputTensors, input)
 		case ort.TensorElementDataTypeUint64:
-			value, err := cast.ToTypedSlice(args, func(input interface{}, sn cast.Strictness) (interface{}, error) {
+			value, err := cast.ToTypedSlice(arg, func(input interface{}, sn cast.Strictness) (interface{}, error) {
 				return cast.ToUint64(input, sn)
 			}, "uin64", cast.CONVERT_SAMEKIND)
 			if err != nil {
@@ -146,7 +146,7 @@ func (f *OnnxFunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 			inputTensors = append(inputTensors, input)
 
 		case ort.TensorElementDataTypeInt32:
-			value, err := cast.ToTypedSlice(args, func(input interface{}, sn cast.Strictness) (interface{}, error) {
+			value, err := cast.ToTypedSlice(arg, func(input interface{}, sn cast.Strictness) (interface{}, error) {
 				return cast.ToInt32(input, sn)
 			}, "int32", cast.CONVERT_SAMEKIND)
 			if err != nil {
@@ -160,11 +160,11 @@ func (f *OnnxFunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 			inputTensors = append(inputTensors, input)
 
 		case ort.TensorElementDataTypeUint32:
-			value, err := cast.ToTypedSlice(args, func(input interface{}, sn cast.Strictness) (interface{}, error) {
-				return cast.ToInt32(input, sn)
-			}, "int32", cast.CONVERT_SAMEKIND)
+			value, err := cast.ToTypedSlice(arg, func(input interface{}, sn cast.Strictness) (interface{}, error) {
+				return cast.ToUint32(input, sn)
+			}, "uint32", cast.CONVERT_SAMEKIND)
 			if err != nil {
-				return fmt.Errorf("invalid %d parameter, expect float64 but got %[2]T(%[2]v) with err %v", i, args[i], err), false
+				return fmt.Errorf("invalid %d parameter, expect uint32 but got %[2]T(%[2]v) with err %v", i, args[i], err), false
 			}
 			valueUI32, _ := value.([]uint32)
 			input, err := ort.NewTensor(inputInfo.Dimensions, valueUI32)
@@ -173,7 +173,7 @@ func (f *OnnxFunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 			}
 			inputTensors = append(inputTensors, input)
 		case ort.TensorElementDataTypeInt16:
-			v, err := cast.ToTypedSlice(args, func(input interface{}, sn cast.Strictness) (interface{}, error) {
+			v, err := cast.ToTypedSlice(arg, func(input interface{}, sn cast.Strictness) (interface{}, error) {
 				return cast.ToInt16(input, sn)
 			}, "int16", cast.CONVERT_SAMEKIND)
 			if err != nil {
@@ -187,9 +187,9 @@ func (f *OnnxFunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 			inputTensors = append(inputTensors, input)
 
 		case ort.TensorElementDataTypeUint16:
-			v, err := cast.ToTypedSlice(args, func(input interface{}, sn cast.Strictness) (interface{}, error) {
+			v, err := cast.ToTypedSlice(arg, func(input interface{}, sn cast.Strictness) (interface{}, error) {
 				return cast.ToUint16(input, sn)
-			}, "int16", cast.CONVERT_SAMEKIND)
+			}, "uint16", cast.CONVERT_SAMEKIND)
 			if err != nil {
 				return fmt.Errorf("invalid %d parameter, expect uint16 but got %[2]T(%[2]v) with err %v", i, args[i], err), false
 			}
@@ -200,7 +200,7 @@ func (f *OnnxFunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 			}
 			inputTensors = append(inputTensors, input)
 		case ort.TensorElementDataTypeInt8:
-			v, err := cast.ToTypedSlice(args, func(input interface{}, sn cast.Strictness) (interface{}, error) {
+			v, err := cast.ToTypedSlice(arg, func(input interface{}, sn cast.Strictness) (interface{}, error) {
 				return cast.ToInt8(input, sn)
 			}, "int8", cast.CONVERT_SAMEKIND)
 			if err != nil {
@@ -213,7 +213,7 @@ func (f *OnnxFunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 			}
 			inputTensors = append(inputTensors, input)
 		case ort.TensorElementDataTypeUint8:
-			v, err := cast.ToTypedSlice(args, func(input interface{}, sn cast.Strictness) (interface{}, error) {
+			v, err := cast.ToTypedSlice(arg, func(input interface{}, sn cast.Strictness) (interface{}, error) {
 				return cast.ToUint8(input, sn)
 			}, "uint8", cast.CONVERT_SAMEKIND)
 			if err != nil {
