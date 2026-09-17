@@ -106,7 +106,9 @@ func (f *OnnxFunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 				return fmt.Errorf("invalid %d parameter, expect float32 but got %[2]T(%[2]v) with err %v", i, args[i], err), false
 			}
 			valueFF16, _ := value.([]float16.Float16)
-			valueF16 := make([]byte, 0, notSupportedDataLen*2)
+			// 长度必须与元素数一致: 旧实现 make([]byte, 0, 4) 得到长度 0 的切片,
+			// 首个元素即 binary.LittleEndian.PutUint16(valueF16[0:]) 越界 panic(远程 DoS)。
+			valueF16 := make([]byte, len(valueFF16)*2)
 			for i := 0; i < len(valueFF16); i++ {
 				// The float16.Float16 type is just a uint16 underneath; write its
 				// bytes to the data slice.
