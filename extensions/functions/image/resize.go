@@ -26,6 +26,11 @@ import (
 	"github.com/nfnt/resize"
 )
 
+// maxImageDim 限制 resize 目标尺寸的宽高上限: width/height 来自用户 SQL 函数
+// 参数, 无上限时 width*height*3(或 resize 内部 RGBA 缓冲)会随超大值 OOM/panic(远程 DoS)。
+// 8K(8192)对图像处理已足够大, 8192*8192*4 = 256MiB 仍可控。
+const maxImageDim = 8192
+
 type imageResize struct{}
 
 func (f *imageResize) Validate(args []any) error {
@@ -45,12 +50,12 @@ func (f *imageResize) Exec(args []any, ctx api.FunctionContext) (any, bool) {
 		return fmt.Errorf("arg[0] is not a bytea, got %v", args[0]), false
 	}
 	width, ok := args[1].(int)
-	if !ok || 0 > width {
-		return fmt.Errorf("arg[1] is not a bigint, got %v", args[1]), false
+	if !ok || 0 > width || width > maxImageDim {
+		return fmt.Errorf("arg[1] is not a valid width (0..%d), got %v", maxImageDim, args[1]), false
 	}
 	height, ok := args[2].(int)
-	if !ok || 0 > height {
-		return fmt.Errorf("arg[2] is not a bigint, got %v", args[2]), false
+	if !ok || 0 > height || height > maxImageDim {
+		return fmt.Errorf("arg[2] is not a valid height (0..%d), got %v", maxImageDim, args[2]), false
 	}
 	isRaw := false
 	if len(args) > 3 {
