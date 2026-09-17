@@ -100,7 +100,7 @@ func (f *Tffunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 				return nil, false
 			}
 		case tflite.Int32:
-			v, err := cast.ToTypedSlice(args, func(input interface{}, sn cast.Strictness) (interface{}, error) {
+			v, err := cast.ToTypedSlice(arg, func(input interface{}, sn cast.Strictness) (interface{}, error) {
 				return cast.ToInt32(input, sn)
 			}, "int32", cast.CONVERT_SAMEKIND)
 			if err != nil {
@@ -111,7 +111,7 @@ func (f *Tffunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 				return nil, false
 			}
 		case tflite.Int16:
-			v, err := cast.ToTypedSlice(args, func(input interface{}, sn cast.Strictness) (interface{}, error) {
+			v, err := cast.ToTypedSlice(arg, func(input interface{}, sn cast.Strictness) (interface{}, error) {
 				return cast.ToInt16(input, sn)
 			}, "int16", cast.CONVERT_SAMEKIND)
 			if err != nil {
@@ -122,7 +122,7 @@ func (f *Tffunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 				return nil, false
 			}
 		case tflite.Int8:
-			v, err := cast.ToTypedSlice(args, func(input interface{}, sn cast.Strictness) (interface{}, error) {
+			v, err := cast.ToTypedSlice(arg, func(input interface{}, sn cast.Strictness) (interface{}, error) {
 				return cast.ToInt8(input, sn)
 			}, "int8", cast.CONVERT_SAMEKIND)
 			if err != nil {
@@ -133,11 +133,13 @@ func (f *Tffunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 				return nil, false
 			}
 		case tflite.UInt8:
-			v, err := cast.ToBytes(args, cast.CONVERT_SAMEKIND)
+			v, err := cast.ToTypedSlice(arg, func(input interface{}, sn cast.Strictness) (interface{}, error) {
+				return cast.ToUint8(input, sn)
+			}, "uint8", cast.CONVERT_SAMEKIND)
 			if err != nil {
 				return fmt.Errorf("invalid %d parameter, expect uint8 but got %[2]T(%[2]v) with err %v", i, args[i], err), false
 			}
-			err = input.SetUint8s(v)
+			err = input.SetUint8s(v.([]uint8))
 			if err != nil {
 				return nil, false
 			}
