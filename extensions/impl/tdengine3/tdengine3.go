@@ -160,7 +160,7 @@ func (cfg *TaosConfig) buildSql(item api.MessageTuple) (string, error) {
 		for _, v := range cfg.TagFields {
 			switch mapData[v].(type) {
 			case string:
-				tags = append(tags, fmt.Sprintf(`"%s"`, mapData[v]))
+				tags = append(tags, quoteTdengineString(fmt.Sprint(mapData[v])))
 			default:
 				tags = append(tags, fmt.Sprintf(`%v`, mapData[v]))
 			}
@@ -178,7 +178,7 @@ func (cfg *TaosConfig) buildSql(item api.MessageTuple) (string, error) {
 			if v, ok := mapData[k]; ok {
 				keys = append(keys, k)
 				if reflect.String == reflect.TypeOf(v).Kind() {
-					vals = append(vals, fmt.Sprintf(`"%v"`, v))
+					vals = append(vals, quoteTdengineString(fmt.Sprint(v)))
 				} else {
 					vals = append(vals, fmt.Sprintf(`%v`, v))
 				}
@@ -194,9 +194,12 @@ func (cfg *TaosConfig) buildSql(item api.MessageTuple) (string, error) {
 			if contains(cfg.TagFields, k) {
 				continue
 			}
+			if !isSafeDynamicFieldName(k) {
+				return "", fmt.Errorf("invalid dynamic field name %q: expected [A-Za-z_][A-Za-z0-9_]*", k)
+			}
 			keys = append(keys, k)
 			if reflect.String == reflect.TypeOf(v).Kind() {
-				vals = append(vals, fmt.Sprintf(`"%v"`, v))
+				vals = append(vals, quoteTdengineString(fmt.Sprint(v)))
 			} else {
 				vals = append(vals, fmt.Sprintf(`%v`, v))
 			}
@@ -212,6 +215,33 @@ func (cfg *TaosConfig) buildSql(item api.MessageTuple) (string, error) {
 	}
 	sqlStr += " values (" + strings.Join(vals, ",") + ")"
 	return sqlStr, nil
+}
+
+// quoteTdengineString 转义 TDengine 双引号字符串字面量: 反斜杠与双引号需转义,
+// 否则业务数据值(可来自不可信的上游消息)含 `"` / `\` 会破坏字面量边界并注入 SQL。
+func quoteTdengineString(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `"`, `\"`)
+	return `"` + s + `"`
+}
+
+// isSafeDynamicFieldName 校验动态消息键(未在 cfg.Fields 显式配置时取自 mapData 键):
+// 只允许 [A-Za-z_][A-Za-z0-9_]*, 防止键名注入 SQL 语法(与 extensions/impl/sql 对齐)。
+func isSafeDynamicFieldName(identifier string) bool {
+	if len(identifier) == 0 {
+		return false
+	}
+	for i := 0; i < len(identifier); i++ {
+		c := identifier[i]
+		if c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' {
+			continue
+		}
+		if i > 0 && c >= '0' && c <= '9' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func contains(slice []string, target string) bool {
