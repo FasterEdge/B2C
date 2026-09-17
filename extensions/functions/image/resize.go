@@ -31,6 +31,21 @@ import (
 // 8K(8192)对图像处理已足够大, 8192*8192*4 = 256MiB 仍可控。
 const maxImageDim = 8192
 
+// decodeImageWithLimit 先经 image.DecodeConfig 读取头部校验尺寸, 再完整解码。
+// 恶意构造的图像头(如 PNG IHDR 声明 1e9x1e9)会使 image.Decode 直接按
+// width*height*4 分配 RGBA 缓冲而 OOM(远程 DoS); 预检查在分配前拒绝超限尺寸。
+func decodeImageWithLimit(data []byte, maxDim int) (image.Image, string, error) {
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return nil, "", err
+	}
+	if cfg.Width > maxDim || cfg.Height > maxDim {
+		return nil, "", fmt.Errorf("image dimensions %dx%d exceed limit %d", cfg.Width, cfg.Height, maxDim)
+	}
+	img, _, err := image.Decode(bytes.NewReader(data))
+	return img, format, err
+}
+
 type imageResize struct{}
 
 func (f *imageResize) Validate(args []any) error {
@@ -66,7 +81,7 @@ func (f *imageResize) Exec(args []any, ctx api.FunctionContext) (any, bool) {
 	}
 	ctx.GetLogger().Debugf("resize: %d %d, output raw %v", width, height, isRaw)
 
-	img, format, err := image.Decode(bytes.NewReader(arg))
+	img, format, err := decodeImageWithLimit(arg, maxImageDim)
 	if nil != err {
 		return fmt.Errorf("image decode error:%v", err), false
 	}

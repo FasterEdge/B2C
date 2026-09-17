@@ -33,6 +33,23 @@ import (
 	"github.com/nfnt/resize"
 )
 
+// maxImageDim 限制输入图像尺寸: 恶意图像头(如 PNG IHDR 声明 1e9x1e9)会使
+// image.Decode 按 width*height*4 分配 RGBA 缓冲而 OOM(远程 DoS)。
+const maxImageDim = 8192
+
+// decodeImageWithLimit 先 DecodeConfig 读头校验尺寸再完整解码, 在分配前拒绝超限。
+func decodeImageWithLimit(data []byte, maxDim int) (image.Image, string, error) {
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return nil, "", err
+	}
+	if cfg.Width > maxDim || cfg.Height > maxDim {
+		return nil, "", fmt.Errorf("image dimensions %dx%d exceed limit %d", cfg.Width, cfg.Height, maxDim)
+	}
+	img, _, err := image.Decode(bytes.NewReader(data))
+	return img, format, err
+}
+
 type labelImage struct {
 	modelPath   string
 	labelPath   string
@@ -53,7 +70,7 @@ func (f *labelImage) Exec(args []interface{}, ctx api.FunctionContext) (interfac
 	if !ok {
 		return fmt.Errorf("labelImage function parameter must be a bytea, but got %[1]T(%[1]v)", args[0]), false
 	}
-	img, _, err := image.Decode(bytes.NewReader(arg0))
+	img, _, err := decodeImageWithLimit(arg0, maxImageDim)
 	if err != nil {
 		return err, false
 	}

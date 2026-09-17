@@ -17,7 +17,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"image"
 	"image/jpeg"
 	"image/png"
 
@@ -40,14 +39,14 @@ func (f *thumbnail) Exec(args []any, _ api.FunctionContext) (any, bool) {
 		return fmt.Errorf("arg[0] is not a bytea, got %v", args[0]), false
 	}
 	maxWidth, ok := args[1].(int)
-	if !ok || 0 > maxWidth {
-		return fmt.Errorf("arg[1] is not a bigint, got %v", args[1]), false
+	if !ok || 0 > maxWidth || maxWidth > maxImageDim {
+		return fmt.Errorf("arg[1] is not a valid width (0..%d), got %v", maxImageDim, args[1]), false
 	}
 	maxHeight, ok := args[2].(int)
-	if !ok || 0 > maxHeight {
-		return fmt.Errorf("arg[2] is not a bigint, got %v", args[2]), false
+	if !ok || 0 > maxHeight || maxHeight > maxImageDim {
+		return fmt.Errorf("arg[2] is not a valid height (0..%d), got %v", maxImageDim, args[2]), false
 	}
-	img, format, err := image.Decode(bytes.NewReader(arg))
+	img, format, err := decodeImageWithLimit(arg, maxImageDim)
 	if nil != err {
 		return fmt.Errorf("image decode error:%v", err), false
 	}
