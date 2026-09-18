@@ -16,6 +16,7 @@ package sqlgen
 
 import (
 	"fmt"
+	"strings"
 )
 
 type SqlServerQueryGenerator struct {
@@ -23,7 +24,9 @@ type SqlServerQueryGenerator struct {
 }
 
 func (q *SqlServerQueryGenerator) quoteValue(value string) string {
-	return "'" + value + "'"
+	// SQL Server 同样以 '' 表示字面量内的单引号; 索引字段值(offset)可能含
+	// 恶意 ', 不转义会注入 "where field > 'value'" 条件子句。
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
 func (q *SqlServerQueryGenerator) getSelect() string {

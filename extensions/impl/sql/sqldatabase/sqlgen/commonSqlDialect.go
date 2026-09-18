@@ -17,6 +17,7 @@ package sqlgen
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/lf-edge/ekuiper/v2/pkg/cast"
 	"github.com/lf-edge/ekuiper/v2/pkg/store"
@@ -27,7 +28,10 @@ type CommonQueryGenerator struct {
 }
 
 func (q *CommonQueryGenerator) quoteValue(value string) string {
-	return "'" + value + "'"
+	// 转义单引号: SQL 标准以 '' 表示字面量内的单引号。索引字段值(offset)
+	// 来自数据库数据, 可能经外部数据源写入并含恶意 '; 不转义会注入
+	// "where field > 'value'" 的条件子句(与 sink.go 的 quoteSQLString 对齐)。
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
 func (q *CommonQueryGenerator) getSelect() string {

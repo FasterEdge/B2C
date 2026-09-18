@@ -224,3 +224,13 @@ func TestGenerateSQLWithMultiIndex(t *testing.T) {
 		require.Equal(t, tc.sql, s)
 	}
 }
+
+func TestQuoteValueEscapesSingleQuote(t *testing.T) {
+	// 索引字段值(offset)可来自外部数据源写库的数据, 含单引号时必须转义为 ''
+	// 否则 "where field > 'value'" 可被注入闭合引号逃逸出条件子句(SQL 注入)。
+	common := &CommonQueryGenerator{}
+	require.Equal(t, "'a'' OR 1=1 --'", common.quoteValue("a' OR 1=1 --"))
+
+	srv := &SqlServerQueryGenerator{}
+	require.Equal(t, "'x''; DROP TABLE t;--'", srv.quoteValue("x'; DROP TABLE t;--"))
+}
