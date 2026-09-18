@@ -224,13 +224,13 @@ func (m *influxSink2) transformLines(ctx api.StreamContext, data any) ([]string,
 
 func (m *influxSink2) rawPtToLine(rawPt *tspoint.RawPoint) string {
 	var builder strings.Builder
-	builder.WriteString(m.conf.Measurement)
+	builder.WriteString(escapeMeasurement(m.conf.Measurement))
 
 	for k, v := range rawPt.Tags {
 		builder.WriteString(",")
-		builder.WriteString(k)
+		builder.WriteString(escapeTag(k))
 		builder.WriteString("=")
-		builder.WriteString(v)
+		builder.WriteString(escapeTag(v))
 	}
 	builder.WriteString(" ")
 	c := 0
@@ -249,15 +249,37 @@ func writeLine(c int, builder *strings.Builder, k string, v any) int {
 		builder.WriteString(",")
 	}
 	c++
-	builder.WriteString(k)
+	builder.WriteString(escapeTag(k))
 	builder.WriteString("=")
 	switch value := v.(type) {
 	case string:
-		builder.WriteString(fmt.Sprintf("\"%s\"", value))
+		builder.WriteString(`"` + escapeString(value) + `"`)
 	default:
 		builder.WriteString(fmt.Sprintf("%v", value))
 	}
 	return c
+}
+
+// InfluxDB line protocol 转义(与 influxdb-client-go Point 的转义规则一致):
+// measurement 转义 ','、' '; tag key/value、field key 转义 ','、'='、' ';
+// string field value 转义 '"'、'\'。UseLineProtocol 路径手工拼串绕过 Point API
+// 转义, 恶意数据可在 tag/field 值中注入新 tag/field 或截断字符串值(数据污染)。
+var (
+	escapeMeasurementReplacer = strings.NewReplacer(`,`, `\,`, ` `, `\ `)
+	escapeTagReplacer         = strings.NewReplacer(`,`, `\,`, `=`, `\=`, ` `, `\ `)
+	escapeStringReplacer      = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
+)
+
+func escapeMeasurement(s string) string {
+	return escapeMeasurementReplacer.Replace(s)
+}
+
+func escapeTag(s string) string {
+	return escapeTagReplacer.Replace(s)
+}
+
+func escapeString(s string) string {
+	return escapeStringReplacer.Replace(s)
 }
 
 func GetSink() api.Sink {

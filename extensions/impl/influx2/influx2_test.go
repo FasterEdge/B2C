@@ -606,6 +606,20 @@ func TestCollectLines(t *testing.T) {
 	}
 }
 
+func TestRawPtToLineEscape(t *testing.T) {
+	// UseLineProtocol 手工拼串必须转义: measurement/tag/field key 转义 ',','=',' ',
+	// string field value 转义 '"','\', 否则恶意数据可注入新 tag/field 或截断字符串值。
+	m := &influxSink2{conf: c{Measurement: "meas, name"}}
+	pt := &tspoint.RawPoint{
+		Tags:   map[string]string{"tag key": "v,1=2"},
+		Fields: map[string]any{"field key": `a"b\c`},
+		Ts:     10,
+	}
+	got := m.rawPtToLine(pt)
+	want := `meas\,\ name,tag\ key=v\,1\=2 field\ key="a\"b\\c" 10`
+	assert.Equal(t, want, got)
+}
+
 func TestCollectLinesError(t *testing.T) {
 	tests := []struct {
 		name string
