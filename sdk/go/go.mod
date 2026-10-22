@@ -1,6 +1,6 @@
 module github.com/lf-edge/ekuiper/sdk/go
 
-go 1.25.4
+go 1.26.0
 
 require (
 	github.com/keepeye/logrus-filename v0.0.0-20190711075016-ce01a4391dd1
@@ -10,7 +10,8 @@ require (
 
 require (
 	github.com/Microsoft/go-winio v0.6.0 // indirect
-	golang.org/x/mod v0.8.0 // indirect
-	golang.org/x/sys v0.5.0 // indirect
-	golang.org/x/tools v0.6.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/tools v0.51.0 // indirect
 )
