@@ -3,7 +3,10 @@
 # 说明: 本仓为 lf-edge/ekuiper 同步副本(go.mod module 为 github.com/lf-edge/ekuiper/v2)。
 #   - go build ./... 不适用: extensions/* 为 go plugin(main 包无 main 函数);
 #   - go vet ./... 的上游 copylocks 警告为 eKuiper 既有设计(返回值含 RWMutex), 不阻塞;
-#   - 原 ekuiper workflow 均带 if: github.repository == 'lf-edge/ekuiper' 条件(防 fork 触发), 在本仓不运行(no status, 非 failing)。
+#   - 上游 ekuiper workflow 原带 if: github.repository_owner == 'lf-edge'(防 fork 触发), 本仓已放开为
+#     'lf-edge' || 'FasterEdge', 使 lint.yaml / semgrep.yaml / run_test_case.yaml 在本仓真实执行;
+#     需密钥的作业(upload_coverage 的 CODECOV_TOKEN, chart.yaml, deploy_docs.yaml,
+#     build_base_image.yaml, upload_sdk.yaml, build_packages.yaml 的 release 作业)仍保持上游限定。
 name: 'Go 构建检查(build ./cmd/...)'
 
 on:
