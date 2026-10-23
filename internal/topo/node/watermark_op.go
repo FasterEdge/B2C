@@ -146,10 +146,29 @@ func (w *WatermarkOp) track(ctx api.StreamContext, emitter string, ts time.Time)
 	watermark, ok := w.streamWMs[emitter]
 	if !ok || ts.After(watermark) {
 		w.streamWMs[emitter] = ts
-		_ = ctx.PutState(StreamWMKey, w.streamWMs)
+		_ = ctx.PutState(StreamWMKey, w.copyStreamWMs())
 	}
 	r := ts.After(w.lastWatermarkTs) || ts.Equal(w.lastWatermarkTs)
 	return r
+}
+
+// copyStreamWMs snapshots the per stream watermarks so the value kept by the
+// checkpoint store is never mutated by this operator afterwards. The checkpoint
+// goroutine gob encodes that value while Exec keeps updating streamWMs.
+func (w *WatermarkOp) copyStreamWMs() map[string]time.Time {
+	snapshot := make(map[string]time.Time, len(w.streamWMs))
+	for emitter, ts := range w.streamWMs {
+		snapshot[emitter] = ts
+	}
+	return snapshot
+}
+
+// copyEvents snapshots the cached events for the same reason as copyStreamWMs:
+// append in later calls reuses the backing array the stored slice points at.
+func (w *WatermarkOp) copyEvents() []*xsql.Tuple {
+	snapshot := make([]*xsql.Tuple, len(w.events))
+	copy(snapshot, w.events)
+	return snapshot
 }
 
 // Add an event and check if watermark proceeds
@@ -201,7 +220,7 @@ func (w *WatermarkOp) addAndTrigger(ctx api.StreamContext, d *xsql.Tuple) {
 				ctx.GetLogger().Debug("send out event", w.events[i].GetTimestamp())
 			}
 			w.events = w.events[c:]
-			_ = ctx.PutState(EventInputKey, w.events)
+			_ = ctx.PutState(EventInputKey, w.copyEvents())
 		}
 		// Update watermark
 		if w.sendWatermark {

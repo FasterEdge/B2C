@@ -193,7 +193,7 @@ func (o *WindowOperator) execEventWindow(ctx api.StreamContext, inputs []xsql.Ev
 				inputs = append(inputs, d)
 				o.span = nil
 				o.onProcessEnd(ctx)
-				_ = ctx.PutState(WindowInputsKey, inputs)
+				_ = ctx.PutState(WindowInputsKey, copyEventRows(inputs))
 			default:
 				o.onError(ctx, fmt.Errorf("run Window error: expect xsql.Event type but got %[1]T(%[1]v)", d))
 			}
@@ -216,6 +216,15 @@ func getEarliestEventTs(inputs []xsql.EventRow, startTs time.Time, endTs time.Ti
 		}
 	}
 	return minTs
+}
+
+// copyEventRows snapshots the pending inputs so the value kept by the checkpoint
+// store is not mutated by the append calls that follow. The checkpoint goroutine
+// gob encodes that value while execEventWindow keeps appending to inputs.
+func copyEventRows(inputs []xsql.EventRow) []xsql.EventRow {
+	snapshot := make([]xsql.EventRow, len(inputs))
+	copy(snapshot, inputs)
+	return snapshot
 }
 
 func (o *WindowOperator) ingest(ctx api.StreamContext, item any) (any, bool) {
