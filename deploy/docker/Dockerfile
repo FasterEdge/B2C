@@ -14,6 +14,9 @@
 
 ARG GO_VERSION=1.25.4
 FROM ghcr.io/lf-edge/ekuiper/base:$GO_VERSION-alpine AS builder
+# The base image pins GOTOOLCHAIN=local, but go.work and go.mod require go 1.26.0.
+# Let the go command fetch the matching toolchain instead of failing the build.
+ENV GOTOOLCHAIN=auto
 
 COPY . /go/kuiper
 
