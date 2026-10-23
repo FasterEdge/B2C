@@ -141,7 +141,10 @@ func InitManager() (*Manager, error) {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return nil, fmt.Errorf("fail to create plugins dir %s: %s", dir, err)
 		}
-		names, err := findAll(plugin2.PluginType(i), pluginDir)
+		// The registry is passed explicitly because the global manager is
+		// only published once the whole registry is built, while findAll
+		// already needs it to preload the .so files into the runtime map.
+		names, err := findAll(plugin2.PluginType(i), pluginDir, registry)
 		if err != nil {
 			return nil, fmt.Errorf("fail to find existing plugins: %s", err)
 		}
@@ -170,7 +173,7 @@ func InitManager() (*Manager, error) {
 	return registry, nil
 }
 
-func findAll(t plugin2.PluginType, pluginDir string) (result map[string]string, err error) {
+func findAll(t plugin2.PluginType, pluginDir string, m *Manager) (result map[string]string, err error) {
 	result = make(map[string]string)
 	dir := filepath.Join(pluginDir, plugin2.PluginTypes[t])
 	files, err := os.ReadDir(dir)
@@ -191,7 +194,7 @@ func findAll(t plugin2.PluginType, pluginDir string) (result map[string]string, 
 			n, v := parseName(baseName)
 			// load the plugins when ekuiper set up
 			if !conf.IsTesting {
-				if _, err := manager.loadRuntime(t, n, filepath.Join(dir, baseName), ""); err != nil {
+				if _, err := m.loadRuntime(t, n, filepath.Join(dir, baseName), ""); err != nil {
 					continue
 				}
 			}
