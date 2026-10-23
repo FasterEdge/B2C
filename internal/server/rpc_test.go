@@ -132,7 +132,7 @@ func (suite *ServerTestSuite) TestRule() {
 	args = &model.RPCArgDesc{Name: ruleId, Json: rule}
 	err = suite.s.CreateRule(args, &reply)
 	assert.Nil(suite.T(), err)
-	assert.Equal(suite.T(), "Rule myRule was created successfully, please use 'bin/kuiper getstatus rule myRule' command to get rule status.", reply)
+	assert.Equal(suite.T(), "Rule myRule was created successfully, please use 'bin/b2c getstatus rule myRule' command to get rule status.", reply)
 
 	reply = ""
 	err = suite.s.GetStatusRule(ruleId, &reply)

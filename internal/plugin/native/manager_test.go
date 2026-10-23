@@ -192,13 +192,13 @@ func TestManager_List(t *testing.T) {
 	}{
 		{
 			t: plugin.SOURCE,
-			r: []string{"random2", "random3"},
+			r: []string{"random", "random2", "random3"},
 		}, {
 			t: plugin.SINK,
 			r: []string{"file2"},
 		}, {
 			t: plugin.FUNCTION,
-			r: []string{"comp", "echo2"},
+			r: []string{"accumulateWordCount", "comp", "countPlusOne", "echo", "echo2"},
 		},
 	}
 	fmt.Printf("The test bucket size is %d.\n\n", len(data))
@@ -215,7 +215,9 @@ func TestManager_List(t *testing.T) {
 func TestManager_Symbols(t *testing.T) {
 	// 与 TestManager_Register 数据一致: echo2 插件注册符号 [echo2, echo3],
 	// comp 注册 [comp]; misc 用例 (f=[misc,echo3]) 因 echo3 冲突失败, 不产生符号。
-	r := []string{"comp", "echo2", "echo3"}
+	// The Build plugins step in CI also installs random/echo/countPlusOne/accumulateWordCount,
+	// and the symbols they register are listed here as well.
+	r := []string{"accumulateWordCount", "comp", "countPlusOne", "echo", "echo2", "echo3"}
 	result := manager.ListSymbols()
 	sort.Strings(result)
 	if !reflect.DeepEqual(r, result) {

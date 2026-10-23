@@ -53,12 +53,12 @@ func TestResize(t *testing.T) {
 		{
 			n:    "wrong width",
 			args: []any{payload, "100", 100},
-			e:    "arg[1] is not a bigint, got 100",
+			e:    "arg[1] is not a valid width (0..8192), got 100",
 		},
 		{
 			n:    "wrong height",
 			args: []any{payload, 100, "100"},
-			e:    "arg[2] is not a bigint, got 100",
+			e:    "arg[2] is not a valid height (0..8192), got 100",
 		},
 		{
 			n:    "wrong raw",
