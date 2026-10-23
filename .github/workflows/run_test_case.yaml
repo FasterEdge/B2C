@@ -130,7 +130,10 @@ jobs:
     if: github.repository_owner == 'lf-edge' || github.repository_owner == 'FasterEdge'
     name: Run Kafka fvt tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The apt mirror is cold and slow on some runners: installing ffmpeg plus
+    # its dependency tree has been observed to take over 14 minutes on its own,
+    # which blew the previous 15 minute budget before the test ever ran.
+    timeout-minutes: 30
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:
