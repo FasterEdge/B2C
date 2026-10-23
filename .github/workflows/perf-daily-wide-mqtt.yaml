@@ -42,10 +42,10 @@ jobs:
           VERSION="$(git describe --tags --always --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//g')"
           OS="$(go env GOOS)"
           ARCH="$(go env GOARCH)"
-          PKG_DIR="_build/kuiper-${VERSION}-${OS}-${ARCH}"
+          PKG_DIR="_build/b2c-${VERSION}-${OS}-${ARCH}"
           echo "PKG_DIR=${PKG_DIR}" >> "$GITHUB_ENV"
 
-          test -x "${PKG_DIR}/bin/kuiperd"
+          test -x "${PKG_DIR}/bin/b2cd"
 
       - name: Prepare perf base dir (config/data/log)
         run: |
@@ -69,7 +69,7 @@ jobs:
           set -euo pipefail
           mkdir -p tmp/perf_daily_ci
           export KuiperBaseKey="$PWD/tmp/perf_daily_ci/kuiper_base"
-          "${PKG_DIR}/bin/kuiperd" > tmp/perf_daily_ci/kuiperd.log 2>&1 &
+          "${PKG_DIR}/bin/b2cd" > tmp/perf_daily_ci/kuiperd.log 2>&1 &
           echo $! > tmp/perf_daily_ci/kuiperd.pid
 
       - name: Wait for eKuiper ready
@@ -146,7 +146,7 @@ jobs:
         run: |
           set -euo pipefail
           export KuiperBaseKey="$PWD/tmp/perf_daily_ci/kuiper_base"
-          "${PKG_DIR}/bin/kuiperd" > tmp/perf_daily_ci/kuiperd_2.log 2>&1 &
+          "${PKG_DIR}/bin/b2cd" > tmp/perf_daily_ci/kuiperd_2.log 2>&1 &
           echo $! > tmp/perf_daily_ci/kuiperd.pid
 
       - name: Wait for eKuiper ready (after restart)

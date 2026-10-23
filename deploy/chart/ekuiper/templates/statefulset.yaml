@@ -104,8 +104,8 @@ spec:
           - /bin/sh
           - -c
           - |
-            mkdir -p /kuiper/plugins/functions /kuiper/plugins/portable /kuiper/plugins/sinks /kuiper/plugins/sources /kuiper/plugins/wasm
-            /kuiper/bin/kuiperd
+            mkdir -p /b2c/plugins/functions /b2c/plugins/portable /b2c/plugins/sinks /b2c/plugins/sources /b2c/plugins/wasm
+            /b2c/bin/b2cd
           readinessProbe:
             httpGet:
               {{- $restPort := index .Values "kuiperConfig" "kuiper.yaml" "basic" "restPort" }}
@@ -121,11 +121,11 @@ spec:
               containerPort: {{ $port | default 20498 }}
           volumeMounts:
           - name: ekuiper-log
-            mountPath: "/kuiper/log"
+            mountPath: "/b2c/log"
           - name: ekuiper-data
-            mountPath: "/kuiper/data"
+            mountPath: "/b2c/data"
           - name: ekuiper-plugins
-            mountPath: "/kuiper/plugins"
+            mountPath: "/b2c/plugins"
           {{- if .Values.tls.enabled }}
           - name: certs
             mountPath: "/var/kuiper/xyz-rootca.pem"
@@ -141,7 +141,7 @@ spec:
             readOnly: true
           {{- end }}
           - name: kuiper-config
-            mountPath: "/kuiper/etc/kuiper.yaml"
+            mountPath: "/b2c/etc/kuiper.yaml"
             subPath: "kuiper.yaml"
           resources:
           {{- toYaml .Values.resources | nindent 12 }}

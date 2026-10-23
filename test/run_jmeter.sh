@@ -54,7 +54,7 @@ downloadjar "/opt/jmeter/lib/ezmorph-1.0.6.jar" https://repo1.maven.org/maven2/n
 
 ver=`git describe --tags --always --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//g'`
 os=`uname -s | tr "[A-Z]" "[a-z]"`
-base_dir=_build/kuiper-"$ver"-"$os"-amd64
+base_dir=_build/b2c-"$ver"-"$os"-amd64
 fvt_dir=`pwd`
 
 rm -rf jmeter_logs

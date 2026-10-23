@@ -83,7 +83,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install pkg-config libczmq-dev -y
           make build_with_cover EXTRA_TAGS=deadlock
-          echo "KUIPER_LOG_PATH=_build/kuiper-$(git describe --tags --always --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//g')-$(uname -s | tr "[A-Z]" "[a-z]")-amd64/log" >> $GITHUB_ENV
+          echo "KUIPER_LOG_PATH=_build/b2c-$(git describe --tags --always --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//g')-$(uname -s | tr "[A-Z]" "[a-z]")-amd64/log" >> $GITHUB_ENV
       - name: run edgex && kuiper
         run: |
           ./test/setup_env.sh
@@ -194,7 +194,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install pkg-config libczmq-dev -y
           make build_with_cover EXTRA_TAGS=deadlock
-          echo "KUIPER_LOG_PATH=_build/kuiper-$(git describe --tags --always --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//g')-$(uname -s | tr "[A-Z]" "[a-z]")-amd64/log" >> $GITHUB_ENV
+          echo "KUIPER_LOG_PATH=_build/b2c-$(git describe --tags --always --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//g')-$(uname -s | tr "[A-Z]" "[a-z]")-amd64/log" >> $GITHUB_ENV
       - name: run edgex && kuiper
         env:
           KUIPER__STORE__TYPE: redis
@@ -297,11 +297,17 @@ jobs:
         wget -O "/opt/jmeter/lib/ezmorph-1.0.6.jar" https://repo1.maven.org/maven2/net/sf/ezmorph/ezmorph/1.0.6/ezmorph-1.0.6.jar
     - name: install docker
       run: |
-        sudo apt-get remove docker docker-engine docker.io containerd runc
+        if command -v docker >/dev/null 2>&1; then
+          echo "docker already installed: $(docker --version)"
+          exit 0
+        fi
+        sudo apt-get remove -y docker docker-engine docker.io containerd runc || true
         sudo apt-get update
-        sudo apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+        sudo apt-get install -y ca-certificates curl gnupg
+        sudo install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        sudo chmod a+r /etc/apt/keyrings/docker.gpg
+        echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
         sudo apt-get update
         sudo apt-get install -y docker-ce docker-ce-cli containerd.io
     - name: install k3s
@@ -319,7 +325,7 @@ jobs:
         sudo ./get_helm.sh
         helm version
     - name: build kuiper for docker
-      run: sudo docker build --no-cache -t lfedge/ekuiper:$(git describe --tags --always --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//g') -f deploy/docker/Dockerfile .
+      run: sudo docker build --no-cache -t b2c:$(git describe --tags --always --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//g') -f deploy/docker/Dockerfile .
     - name: run emqx on chart
       env:
         KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
@@ -341,7 +347,7 @@ jobs:
         version=$(git describe --tags --always --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//g')
         emqx_address=$(kubectl get svc --namespace default emqx -o jsonpath="{.spec.clusterIP}")
 
-        sudo docker save lfedge/ekuiper:$version -o kuier.tar.gz
+        sudo docker save b2c:$version -o kuier.tar.gz
         sudo k3s ctr image import kuier.tar.gz
 
         sed -i -r "s/^appVersion: .*$/appVersion: \"${version}\"/g" deploy/chart/ekuiper/Chart.yaml

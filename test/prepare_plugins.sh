@@ -28,7 +28,7 @@ chmod +x test/plugins/sql/create_table
 
 ver=`git describe --tags --always --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//g'`
 os=`uname -s | tr "[A-Z]" "[a-z]"`
-base_dir=_build/kuiper-"$ver"-"$os"-amd64
+base_dir=_build/b2c-"$ver"-"$os"-amd64
 cp extensions/sources/zmq/zmq.yaml $base_dir/etc/sources/
 cp extensions/sources/zmq/zmq.json $base_dir/etc/sources/
 cp test/yaml_for_test/sql.yaml $base_dir/etc/sources/

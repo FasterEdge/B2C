@@ -118,8 +118,8 @@ tls:
   existingSecretFullChain: false
 
 # @ignored
-b2cConfig:
-  "b2c.yaml":
+kuiperConfig:
+  "kuiper.yaml":
     basic:
       # debug | info | warn | error | fatal | panic
       logLevel: info
