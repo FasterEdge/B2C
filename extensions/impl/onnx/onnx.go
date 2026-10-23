@@ -71,7 +71,6 @@ func (f *OnnxFunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 			return fmt.Errorf("onnx function parameter %d must be a bytea or array of bytea, but got %[1]T(%[1]v)", v), false
 		}
 
-		notSupportedDataLen := -1
 		switch inputInfo.DataType {
 		case ort.TensorElementDataTypeDouble:
 			value, err := cast.ToFloat64Slice(arg, cast.CONVERT_SAMEKIND, cast.IGNORE_NIL)
@@ -94,7 +93,6 @@ func (f *OnnxFunc) Exec(ctx api.FunctionContext, args []any) (any, bool) {
 			}
 			inputTensors = append(inputTensors, input)
 		case ort.TensorElementDataTypeFloat16: // not support
-			notSupportedDataLen = 2
 			value, err := cast.ToTypedSlice(arg, func(input any, sn cast.Strictness) (interface{}, error) {
 				f32, err := cast.ToFloat32(input, sn)
 				if err != nil {
