@@ -76,17 +76,20 @@ func TestSourceConnectorCompare(t *testing.T, r api.Source, props map[string]any
 		t.Fatal("invalid expected type")
 	}
 	var (
-		wg     sync.WaitGroup
-		result []api.MessageTuple
-		e      error
+		wg       sync.WaitGroup
+		done     sync.Once
+		sourceWg sync.WaitGroup
+		result   []api.MessageTuple
+		e        error
 	)
 	wg.Add(1)
+	sourceWg.Add(1)
 	ingestErr := func(ctx api.StreamContext, err error) {
 		ctx.GetLogger().Error(err)
 		e = err
 		limit--
-		if limit == 0 {
-			wg.Done()
+		if limit <= 0 {
+			done.Do(wg.Done)
 		}
 	}
 	ingestBytes := func(ctx api.StreamContext, payload []byte, meta map[string]any, ts time.Time) {
@@ -97,8 +100,8 @@ func TestSourceConnectorCompare(t *testing.T, r api.Source, props map[string]any
 		}
 
 		limit--
-		if limit == 0 {
-			wg.Done()
+		if limit <= 0 {
+			done.Do(wg.Done)
 		}
 	}
 	ingestTuples := func(ctx api.StreamContext, message any, meta map[string]any, ts time.Time) {
@@ -117,11 +120,12 @@ func TestSourceConnectorCompare(t *testing.T, r api.Source, props map[string]any
 			panic("not supported yet")
 		}
 		limit--
-		if limit == 0 {
-			wg.Done()
+		if limit <= 0 {
+			done.Do(wg.Done)
 		}
 	}
 	go func() {
+		defer sourceWg.Done()
 		switch ss := r.(type) {
 		case api.PullBytesSource, api.PullTupleSource:
 			switch ss := r.(type) {
@@ -177,6 +181,19 @@ func TestSourceConnectorCompare(t *testing.T, r api.Source, props map[string]any
 		cancel()
 		assert.Fail(t, "timeout")
 		return
+	}
+	// The source goroutine only stops once it notices the cancelled context, and
+	// until then it keeps invoking the ingest callbacks that mutate result and e.
+	// Wait for it to return so the reads below do not race with those writes.
+	stopped := make(chan struct{})
+	go func() {
+		sourceWg.Wait()
+		close(stopped)
+	}()
+	select {
+	case <-stopped:
+	case <-time.After(10 * time.Second):
+		assert.Fail(t, "source goroutine did not stop after cancellation")
 	}
 	if ee, ok := expected.(error); ok {
 		assert.Equal(t, ee, e)
