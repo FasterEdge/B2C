@@ -84,7 +84,7 @@ jobs:
         fetch-depth: 0
     - uses: actions/setup-go@v5
       with:
-        go-version: '1.25.4'
+        go-version-file: 'go.mod'
     - name: prepare
       run: |
         brew install zip unzip gnu-sed zmq

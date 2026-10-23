@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25.4'
+          go-version-file: 'go.mod'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -68,32 +68,27 @@ jobs:
       - name: Install Merge Tool
         run: go install github.com/wadey/gocovmerge@latest
 
-      - name: Run test case
+      - name: Enable failpoints
+        run: make failpoint-enable
+      - name: Unit tests with race detector
         run: |
-          make failpoint-enable
-          
-          # 1. Run MAIN tests (With Race)
-          # We ADD -skip to avoid running the special tests here
           go test -trimpath -race -tags="edgex msgpack script parquet test rpc" \
             -skip "TestMsgpackService|TestExtensions|TestFuncState|TestFuncStateCheckpoint|TestStartCPUProfiling" \
             -cover -covermode=atomic -coverpkg=./... -coverprofile=cover_race.out \
             $(go list ./... | grep -v "github.com/lf-edge/ekuiper/v2/fvt")
-      
-          # 2. Run SPECIAL tests (No Race)
+      - name: Unit tests without race detector
+        run: |
           go test -trimpath -tags="edgex msgpack script parquet test rpc" \
             -run "TestMsgpackService|TestExtensions|TestFuncState|TestFuncStateCheckpoint|TestStartCPUProfiling" \
             -cover -covermode=atomic -coverpkg=./... -coverprofile=cover_norace.out \
             ./internal/service ./internal/topo/exttest ./internal/server/proftest
-      
-          # 3. Safe Merge using gocovmerge
-          # This correctly sums up the counters for shared code
-          $HOME/go/bin/gocovmerge cover_race.out cover_norace.out > coverage.xml
-      
-          # 4. Calculate Total
+      - name: Merge coverage reports
+        run: $HOME/go/bin/gocovmerge cover_race.out cover_norace.out > coverage.xml
+      - name: Report total coverage
+        run: |
           total_coverage=$(go tool cover -func=coverage.xml 2>/dev/null | grep total | awk '{print $3}')
           echo "Total coverage: $total_coverage"
-      
-        # 5. Ensure failpoints disable even if tests fail
+      # Ensure failpoints are disabled even when a test step fails
       - name: Cleanup Failpoints
         if: always() # Runs even if previous step failed
         run: make failpoint-disable
@@ -142,7 +137,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25.4'
+          go-version-file: 'go.mod'
       - name: Install dependencies
         run: |
           sudo apt-get update
