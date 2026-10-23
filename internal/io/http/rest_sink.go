@@ -60,9 +60,7 @@ type responseMqttPublisher struct {
 	forwardEmpty   bool
 }
 
-var (
-	_ api.BytesCollector = &RestSink{}
-)
+var _ api.BytesCollector = &RestSink{}
 
 type restHeaderTemplate struct {
 	value        string
