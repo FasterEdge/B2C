@@ -42,6 +42,7 @@ jobs:
       JMETER_VERSION: 5.4.3
 
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
@@ -78,7 +79,6 @@ jobs:
           echo "jmeter.save.saveservice.response_data.on_error=true" >> /tmp/apache-jmeter-$JMETER_VERSION/user.properties
           wget -O /tmp/apache-jmeter-$JMETER_VERSION/lib/ext/mqtt-xmeter-1.13-jar-with-dependencies.jar https://github.com/emqx/mqtt-jmeter/raw/master/Download/v1.13.0/mqtt-xmeter-1.13-jar-with-dependencies.jar
           ln -s /tmp/apache-jmeter-$JMETER_VERSION /opt/jmeter
-      - uses: actions/checkout@v4
       - name: build kuiper
         run: |
           sudo apt-get update && sudo apt-get install pkg-config libczmq-dev -y
@@ -157,6 +157,7 @@ jobs:
       JMETER_VERSION: 5.4.3
 
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
@@ -189,7 +190,6 @@ jobs:
           echo "jmeter.save.saveservice.response_data.on_error=true" >> /tmp/apache-jmeter-$JMETER_VERSION/user.properties
           wget -O /tmp/apache-jmeter-$JMETER_VERSION/lib/ext/mqtt-xmeter-1.13-jar-with-dependencies.jar https://github.com/emqx/mqtt-jmeter/raw/master/Download/v1.13.0/mqtt-xmeter-1.13-jar-with-dependencies.jar
           ln -s /tmp/apache-jmeter-$JMETER_VERSION /opt/jmeter
-      - uses: actions/checkout@v4
       - name: build kuiper
         run: |
           sudo apt-get update && sudo apt-get install pkg-config libczmq-dev -y
