@@ -162,6 +162,13 @@ func (c *Client) Subscribe(ctx api.StreamContext, topic string, qos byte, callba
 			})
 		}
 	}
+	// Every topic is already subscribed on this client, e.g. replayed by a
+	// reconnect. A SUBSCRIBE packet carrying no filter is a protocol
+	// violation that makes the broker drop the connection, so there is
+	// nothing left to send.
+	if len(s.Subscriptions) == 0 {
+		return nil
+	}
 	suback, err := c.cm.Subscribe(ctx, s)
 	if err != nil {
 		if suback != nil {
