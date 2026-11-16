@@ -1,17 +1,14 @@
 module github.com/lf-edge/ekuiper/sdk/go
 
-go 1.26.0
+go 1.27.4
 
 require (
 	github.com/keepeye/logrus-filename v0.0.0-20190711075016-ce01a4391dd1
-	github.com/sirupsen/logrus v1.9.3
-	go.nanomsg.org/mangos/v3 v3.4.2
+	github.com/sirupsen/logrus v1.10.2
+	go.nanomsg.org/mangos/v3 v3.6.0
 )
 
 require (
-	github.com/Microsoft/go-winio v0.6.0 // indirect
-	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/tools v0.51.0 // indirect
+	github.com/Microsoft/go-winio v0.6.4 // indirect
+	golang.org/x/sys v0.50.0 // indirect
 )

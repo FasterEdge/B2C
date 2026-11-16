@@ -17,5 +17,5 @@
 package driver
 
 import (
-	_ "github.com/snowflakedb/gosnowflake" // Snowflake driver
+	_ "github.com/snowflakedb/gosnowflake/v2" // Snowflake driver
 )
