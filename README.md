@@ -14,7 +14,7 @@
 
 - **B2C 是 [LF Edge eKuiper](https://github.com/lf-edge/ekuiper) 的同步副本（fork）**，不是重新实现的引擎。
   分界点提交为 `fce9a2e1`（上游 `feat: support array_avg (#4108)`，2026-08-18）。
-- 从分界点至今共 **54 个自有提交**，代码净增 **344 行**（其中 Go 代码净增 1277 行），相对上游约 12.6 万行代码（`git ls-files` 统计），净增占比约 **0.27%**。
+- 从分界点至今共 **55 个自有提交**，代码净增 **632 行**（其中 Go 代码净增 1277 行），相对上游约 12.6 万行代码（`git ls-files | xargs wc -l` 统计为 125418 行），净增占比约 **0.50%**。
   因此**本仓库 99% 以上的能力来自上游 eKuiper**，请勿将其理解为"B2C 自研引擎"。
 - 本分支唯一的自研功能是 **MQTT v5 请求-响应网关**（见第六节），其余自有提交主要是
   安全修复、构建/CI 适配与文档修正。
@@ -27,13 +27,20 @@
 #### 代码量与提交构成（可自行复核）
 
 ```bash
-# 自有提交数与规模（相对上游分界点）
-git log --oneline fce9a2e1..HEAD | wc -l
-git diff --shortstat fce9a2e1..HEAD
+# 自有提交数、改动规模、仓库总行数（相对上游分界点）
+git rev-list --count fce9a2e1..HEAD        # => 55
+git diff --shortstat fce9a2e1..HEAD        # => 140 files changed, 3947 insertions(+), 3315 deletions(-)
+git ls-files | wc -l                       # => 1859（这是文件数，不是行数）
+git ls-files | xargs wc -l                 # 末行 total 125418（行数口径）
 
-# 仅看非配置/非文档的 Go 代码改动
-git diff --numstat fce9a2e1..HEAD | awk '$1+$2>0 && $3 ~ /\.go$/'
+# 仅看 Go 代码的净增
+git diff --numstat fce9a2e1..HEAD | awk '$3 ~ /\.go$/ {a+=$1; d+=$2} END {print "net", a-d}'   # => net 1277
 ```
+
+> 说明：`git ls-files | wc -l` 数的是被跟踪文件数（1859 个），**不是代码行数**；
+> 行数口径是 `git ls-files | xargs wc -l` 的 total（125418 行）。
+> "净增 632 行" = 3947 insertions − 3315 deletions，取自 `git diff --shortstat`；
+> 占比 632 / 125418 ≈ 0.50%。
 
 ### 二、能力归属：上游 vs 本分支
 
@@ -54,20 +61,33 @@ git diff --numstat fce9a2e1..HEAD | awk '$1+$2>0 && $3 ~ /\.go$/'
 - 窗口类型由 `pkg/ast/statement.go:180-188` 定义，共 **6 种**：
   `TUMBLING` / `HOPPING` / `SLIDING` / `SESSION` / `COUNT` / `STATE`。
   （常见"4 类时间窗口 + 计数窗口"的说法是上游文档的旧表述，未计入后来加入的 `STATE_WINDOW`。）
-- 内置 SQL 函数：`internal/binder/function/funcs_*.go` 中注册的函数名去重后共 **191 个**
+- 内置 SQL 函数：`internal/binder/function/funcs_*.go` 中注册的函数名去重后共 **192 个**
   （覆盖数学、字符串、聚合、数组、对象、类型转换、日期时间、窗口函数等）。
   可用下面的命令复核，它统计的是注册表中的字面量而非文档口径：
 
   ```bash
   grep -rhoE 'builtins\["[a-zA-Z_0-9]+"\]' internal/binder/function/funcs_*.go \
-    | sed 's/builtins\["//;s/"\]//' | sort -u | wc -l   # => 191
+    | sed 's/builtins\["//;s/"\]//' | sort -u | wc -l   # => 192
   ```
+
+  > **统计口径（重要）**：该通配符会把同目录的 `funcs_*_test.go` **一并计入**——
+  > 15 个测试文件里有 91 处 `builtins["..."]` 引用，覆盖 68 个名字，但这些名字全都是
+  > 非测试文件中已注册名字的子集，所以去重后不改变结果。
+  > 若严格只统计非测试文件（`ls internal/binder/function/funcs_*.go | grep -v '_test\.go$'`），
+  > 去重后同样是 **192 个**，与上面口径一致；早期文档所写的 191 是漏数。
 
 #### [上游能力] 管理面
 
 - CLI（`bin/kuiper`）、REST API（默认端口 `9081`）、Kubernetes config map 管理。
-- REST 路由表在 `internal/server/rest.go:190-290` 注册，含流、表、规则、连接、插件、配置导入导出、
-  规则 trace、指标 dump 等共 66 个路由，规模远超早期文档所列的十几条。
+- REST 路由表在 `internal/server/rest.go` 中注册：`grep -c HandleFunc internal/server/rest.go` 得 **62 个**
+  `HandleFunc` 路由，另有 4 个 pprof 路由用 `r.Handle(` 注册（`/debug/pprof/goroutine`、`heap`、
+  `threadcreate`、`block`），合计 **66 条**路由注册语句。覆盖流、表、规则、连接、插件、
+  配置导入导出、规则 trace、指标 dump 等，规模远超早期文档所列的十几条。
+
+  ```bash
+  grep -c HandleFunc internal/server/rest.go                    # => 62
+  grep -cE 'r\.Handle(Func)?\(' internal/server/rest.go          # => 66
+  ```
 - 可视化 Web 管理控制台（eKuiper Manager）为**独立项目**，不在本仓库内。
 
 #### [本分支新增] MQTT v5 请求-响应网关
@@ -99,7 +119,14 @@ git diff --numstat fce9a2e1..HEAD | awk '$1+$2>0 && $3 ~ /\.go$/'
 - 依赖版本整体升级以消除已知 CVE；Go toolchain 随上游演进（当前 `go 1.27.4`）。
 - 新增 `.github/workflows/check.yml`（只跑 `go build ./cmd/...`）、`.github/dependabot.yml`、`SECURITY.md`。
 - 补齐 `.dockerignore`，把 `.git`、`.github`、文档排除出 Docker 构建上下文。
-- Dockerfile 允许 Go toolchain 切换；helm chart 与 fork 构建路径对齐。
+- Dockerfile 允许 Go toolchain 切换；`deploy/chart/ekuiper/` 下的 chart 模板与 values 已按
+  fork 的镜像名/构建路径调整（提交 `bb252019`）。
+
+  > **关于 chart 版本号的说明（不是 bug）**：`deploy/chart/ekuiper/Chart.yaml:17,21` 的
+  > `version: 1.4.0` / `appVersion: 2.3.0-beta.5` 是**上游 eKuiper 的 Helm chart 版本号**，
+  > 与本仓库的 git tag（当前最新 `v1.0.20261116`）是两套独立的版本体系，并无对应关系。
+  > 该 chart 属上游遗留资产，本 fork **不发布该 chart**（无对应 workflow，见第二节 CI 说明）；
+  > 本仓只借用了其中的模板与 values 做构建路径对齐。读者不应把两者数字对不上视为版本错配。
 
 ### 三、关于"超轻量"的诚实说明
 

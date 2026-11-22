@@ -15,9 +15,9 @@
 
 - **B2C is a sync fork of [LF Edge eKuiper](https://github.com/lf-edge/ekuiper)**, not a reimplementation.
   The divergence point is commit `fce9a2e1` (upstream `feat: support array_avg (#4108)`, 2026-08-18).
-- From the divergence point to HEAD there are **54 own commits**, adding **344 lines net** (1277 net lines in Go code).
-  Against upstream's ~126,000 tracked lines (`git ls-files`) that is about **0.27%**. Therefore **more than 99% of this
-  repository's capability comes from upstream eKuiper** — do not read B2C as an in-house engine.
+- From the divergence point to HEAD there are **55 own commits**, adding **632 lines net** (1277 net lines in Go code).
+  Against upstream's ~126,000 tracked lines (`git ls-files | xargs wc -l` reports 125418 lines) that is about **0.50%**.
+  Therefore **more than 99% of this repository's capability comes from upstream eKuiper** — do not read B2C as an in-house engine.
 - The only self-developed feature is the **MQTT v5 request-response gateway** (section 6).
   The remaining own commits are security fixes, build/CI adaptations and documentation corrections.
 - The fork's own CI is `.github/workflows/check.yml`, which runs only `go build ./cmd/...`.
@@ -31,13 +31,20 @@
 #### Scale and Commit Composition (verify it yourself)
 
 ```bash
-# Own commit count and size relative to the upstream divergence point
-git log --oneline fce9a2e1..HEAD | wc -l
-git diff --shortstat fce9a2e1..HEAD
+# Own commit count, change size, and total tracked lines relative to the upstream divergence point
+git rev-list --count fce9a2e1..HEAD        # => 55
+git diff --shortstat fce9a2e1..HEAD        # => 140 files changed, 3947 insertions(+), 3315 deletions(-)
+git ls-files | wc -l                       # => 1859 (file count, NOT line count)
+git ls-files | xargs wc -l                 # final "total" line: 125418 (line count)
 
-# Go source changes only (excluding configs and docs)
-git diff --numstat fce9a2e1..HEAD | awk '$1+$2>0 && $3 ~ /\.go$/'
+# Net line change in Go code only
+git diff --numstat fce9a2e1..HEAD | awk '$3 ~ /\.go$/ {a+=$1; d+=$2} END {print "net", a-d}'   # => net 1277
 ```
+
+> Note: `git ls-files | wc -l` counts tracked **files** (1859), not lines.
+> The line-count figure comes from `git ls-files | xargs wc -l` (total 125418).
+> "632 lines net" = 3947 insertions − 3315 deletions from `git diff --shortstat`;
+> the share is 632 / 125418 ≈ 0.50%.
 
 ### 2. Capability Attribution: Upstream vs. This Fork
 
@@ -62,21 +69,35 @@ upstream eKuiper capability.**
   `TUMBLING` / `HOPPING` / `SLIDING` / `SESSION` / `COUNT` / `STATE`.
   (The familiar "4 time windows plus a count window" phrasing is the older upstream wording;
   it predates `STATE_WINDOW`.)
-- Built-in SQL functions: **191** distinct names are registered across
+- Built-in SQL functions: **192** distinct names are registered across
   `internal/binder/function/funcs_*.go` (math, string, aggregate, array, object, type conversion,
   datetime, window functions). Reproduce with:
 
   ```bash
   grep -rhoE 'builtins\["[a-zA-Z_0-9]+"\]' internal/binder/function/funcs_*.go \
-    | sed 's/builtins\["//;s/"\]//' | sort -u | wc -l   # => 191
+    | sed 's/builtins\["//;s/"\]//' | sort -u | wc -l   # => 192
   ```
+
+  > **Counting rule (important):** this glob also pulls in the sibling `funcs_*_test.go`
+  > files — the 15 test files contain 91 `builtins["..."]` references covering 68 names,
+  > every one of which is a subset of names already registered in non-test files, so the
+  > deduplicated count is unchanged. Restricting strictly to non-test files
+  > (`ls internal/binder/function/funcs_*.go | grep -v '_test\.go$'`) also yields
+  > **192**, matching the figure above; the older docs' 191 was an undercount.
 
 #### [UPSTREAM] Management
 
 - CLI (`bin/kuiper`), REST API (default port `9081`), Kubernetes config maps.
-- The REST route table is registered in `internal/server/rest.go:190-290` — 66 routes
-  covering streams, tables, rules, connections, plugins, config import/export, rule tracing and
-  metric dumps, far more than the dozen listed by older docs.
+- The REST route table is registered in `internal/server/rest.go`: `grep -c HandleFunc internal/server/rest.go`
+  gives **62** `HandleFunc` routes, plus 4 pprof routes registered via `r.Handle(` (`/debug/pprof/goroutine`,
+  `heap`, `threadcreate`, `block`), for **66** route registrations in total. They cover streams, tables,
+  rules, connections, plugins, config import/export, rule tracing and metric dumps — far more than
+  the dozen listed by older docs.
+
+  ```bash
+  grep -c HandleFunc internal/server/rest.go                    # => 62
+  grep -cE 'r\.Handle(Func)?\(' internal/server/rest.go          # => 66
+  ```
 - The web management console (eKuiper Manager) is a **separate project** and is not in this repo.
 
 #### [FORK ADDITION] MQTT v5 Request-Response Gateway
@@ -110,7 +131,16 @@ All of the following **fix upstream defects**; none add attack surface.
 - Added `.github/workflows/check.yml` (only `go build ./cmd/...`), `.github/dependabot.yml`
   and `SECURITY.md`.
 - Added `.dockerignore` to keep `.git`, `.github` and docs out of the Docker build context.
-- Dockerfiles allow a Go toolchain switch; the helm chart and fork build paths are aligned.
+- Dockerfiles allow a Go toolchain switch; the chart templates and values under
+  `deploy/chart/ekuiper/` were adjusted for the fork's image name and build paths (commit `bb252019`).
+
+  > **About the chart version numbers (not a bug):** `deploy/chart/ekuiper/Chart.yaml:17,21` carries
+  > `version: 1.4.0` / `appVersion: 2.3.0-beta.5`, which are **upstream eKuiper's Helm chart version**
+  > numbers. They belong to a separate versioning scheme from this repository's git tags
+  > (currently `v1.0.20261116`) and have no relation to them. The chart is a leftover upstream asset;
+  > this fork **does not publish it** (no workflow does so — see the CI note in section 2). Only the
+  > templates and values are reused here for build-path alignment. Readers should not read the
+  > mismatched numbers as a version inconsistency.
 
 ### 3. An Honest Note on "Ultra-Lightweight"
 

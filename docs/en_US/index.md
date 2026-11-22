@@ -10,8 +10,9 @@ SQL-based or graph-based (similar to Node-RED) rules to create IoT edge analytic
 ## Features
 
 > **Correction on the "ultra-lightweight" figure (measured in this fork)**
-> The "about 4.5M" below is the legacy upstream claim and **could not be reproduced** here.
-> Building `cmd/kuiperd` with `CGO_ENABLED=0 go build -trimpath -ldflags="-s -w"` measured
+> The "about 4.5M" line below is the legacy upstream claim and **could not be reproduced** here,
+> so it is no longer kept as a feature bullet. Building `cmd/kuiperd` with
+> `CGO_ENABLED=0 go build -trimpath -ldflags="-s -w"` measured
 > 41.02MB on windows/amd64, 40.32MB on linux/amd64 and 37.38MB on linux/arm64 (uncompressed
 > binaries). The gap comes from accumulated upstream plugins and dependencies, not from this
 > fork. Memory usage depends strongly on rule workload, and this fork ran no benchmarks, so no
@@ -19,7 +20,10 @@ SQL-based or graph-based (similar to Node-RED) rules to create IoT edge analytic
 
 - Lightweight
 
-  - (legacy upstream claim, not reproducible) The core server package is only about 4.5M, the memory footprint is about 10MB.
+  - Designed for resource-constrained edge devices; the binary is stripped of debug symbols
+    and cross-compiles to X86/ARM/PPC
+  - The legacy upstream claim "core server package about 4.5M, memory footprint about 10MB"
+    is **not reproducible** in this fork; those numbers have been removed — do not quote them
 
 - Cross-platform
 
@@ -31,8 +35,10 @@ SQL-based or graph-based (similar to Node-RED) rules to create IoT edge analytic
 
   - Supports data ETL
   - Data order, group, aggregation and join with different data sources (the data from databases and files)
-  - 60+ functions, including mathematical, string, aggregate and hash, etc.
-  - 4 time windows and a count window
+  - 192 built-in SQL functions, covering math, string, aggregate, array and object handling,
+    type conversion, datetime and window functions
+  - 6 window types (defined at `pkg/ast/statement.go:180-188`): tumbling `TUMBLING`,
+    hopping `HOPPING`, sliding `SLIDING`, session `SESSION`, count `COUNT` and state `STATE`
 
 - Highly extensible
 

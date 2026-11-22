@@ -4,7 +4,8 @@
 
 B2C 是 [LF Edge eKuiper](https://github.com/lf-edge/ekuiper) 的同步副本（fork）。
 分界点为提交 `fce9a2e1`（上游 `feat: support array_avg (#4108)`，2026-08-18），
-分界点之后共 54 个自有提交、净增 344 行。
+分界点之后共 55 个自有提交、净增 632 行（3947 insertions − 3315 deletions），
+占仓库 125418 行被跟踪代码（`git ls-files | xargs wc -l`）的约 0.50%。
 
 下列条目按来源分为两部分：**来自上游（随同步带入）** 与 **本分支自行提交**。
 请勿把上游变更记为本分支成果。
