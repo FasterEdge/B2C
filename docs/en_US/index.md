@@ -9,9 +9,17 @@ SQL-based or graph-based (similar to Node-RED) rules to create IoT edge analytic
 
 ## Features
 
+> **Correction on the "ultra-lightweight" figure (measured in this fork)**
+> The "about 4.5M" below is the legacy upstream claim and **could not be reproduced** here.
+> Building `cmd/kuiperd` with `CGO_ENABLED=0 go build -trimpath -ldflags="-s -w"` measured
+> 41.02MB on windows/amd64, 40.32MB on linux/amd64 and 37.38MB on linux/arm64 (uncompressed
+> binaries). The gap comes from accumulated upstream plugins and dependencies, not from this
+> fork. Memory usage depends strongly on rule workload, and this fork ran no benchmarks, so no
+> memory figure is claimed. See section 3 of the top-level `README_en.md`.
+
 - Lightweight
 
-  - The core server package is only about 4.5M, the memory footprint is about 10MB.
+  - (legacy upstream claim, not reproducible) The core server package is only about 4.5M, the memory footprint is about 10MB.
 
 - Cross-platform
 

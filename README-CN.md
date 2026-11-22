@@ -1,10 +1,22 @@
 # B2C 中文文档
 
-> 中文文档已合并至 [README.md](./README.md)，请直接查看主文档。
+本仓库的中文主文档为 [README.md](./README.md)。
 
-B2C 是 [LF Edge eKuiper](https://github.com/lf-edge/ekuiper) 的增强分支，一款超轻量物联网边缘流式分析引擎。更多信息请参阅：
+## 关于本仓库的性质（重要）
 
-- [主 README（中文）](./README.md)
-- [项目文档](./docs/zh_CN/)
-- [快速开始](./docs/zh_CN/getting_started/getting_started.md)
-- [5 分钟快速入门（Docker）](./docs/zh_CN/getting_started/quick_start_docker.md)
+**B2C 是 [LF Edge eKuiper](https://github.com/lf-edge/ekuiper) 的同步副本（fork）**，不是自研引擎。
+
+- 与上游的分界点为提交 `fce9a2e1`（上游 `feat: support array_avg (#4108)`，2026-08-18）。
+- 分界点至今共 **54 个自有提交**，净增 **344 行**（其中 Go 代码净增 1277 行），占上游约 12.6 万行代码（`git ls-files` 统计）的约 **0.27%**。
+- 本分支唯一自研功能为 **MQTT v5 请求-响应网关**（见 README 第六节），
+  其余自有提交为安全修复、构建/CI 适配与文档修正。
+- 因此，**凡 README 未标注「本分支新增」的能力，均来自上游 eKuiper**。使用与二次开发请
+  以上游仓库的文档和社区为主要参考。
+
+## 延伸阅读
+
+- [README.md](./README.md) —— 中文主文档，含能力归属表与本分支新增功能详解
+- [README_en.md](./README_en.md) —— 英文主文档
+- [项目文档](./docs/zh_CN/) —— 上游中英文文档（本分支仅修正失效链接）
+- [REST sink · 响应回传（请求-响应网关）](./docs/zh_CN/guide/sinks/builtin/rest.md) —— 自研功能完整文档
+- [RELEASE_NOTES.md](./RELEASE_NOTES.md) —— 默认绑定 localhost 的行为变更说明（来自上游 `60e16db7`）
