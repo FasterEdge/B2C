@@ -124,7 +124,7 @@ git diff --numstat fce9a2e1..HEAD | awk '$3 ~ /\.go$/ {a+=$1; d+=$2} END {print 
 
   > **关于 chart 版本号的说明（不是 bug）**：`deploy/chart/ekuiper/Chart.yaml:17,21` 的
   > `version: 1.4.0` / `appVersion: 2.3.0-beta.5` 是**上游 eKuiper 的 Helm chart 版本号**，
-  > 与本仓库的 git tag（当前最新 `v1.0.20261116`）是两套独立的版本体系，并无对应关系。
+  > 与本仓库的 git tag（当前最新 `v1.0.20261123`）是两套独立的版本体系，并无对应关系。
   > 该 chart 属上游遗留资产，本 fork **不发布该 chart**（无对应 workflow，见第二节 CI 说明）；
   > 本仓只借用了其中的模板与 values 做构建路径对齐。读者不应把两者数字对不上视为版本错配。
 

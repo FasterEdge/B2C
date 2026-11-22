@@ -137,7 +137,7 @@ All of the following **fix upstream defects**; none add attack surface.
   > **About the chart version numbers (not a bug):** `deploy/chart/ekuiper/Chart.yaml:17,21` carries
   > `version: 1.4.0` / `appVersion: 2.3.0-beta.5`, which are **upstream eKuiper's Helm chart version**
   > numbers. They belong to a separate versioning scheme from this repository's git tags
-  > (currently `v1.0.20261116`) and have no relation to them. The chart is a leftover upstream asset;
+  > (currently `v1.0.20261123`) and have no relation to them. The chart is a leftover upstream asset;
   > this fork **does not publish it** (no workflow does so — see the CI note in section 2). Only the
   > templates and values are reused here for build-path alignment. Readers should not read the
   > mismatched numbers as a version inconsistency.
