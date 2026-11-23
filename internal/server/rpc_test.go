@@ -84,7 +84,12 @@ func (suite *ServerTestSuite) TestStream() {
 }
 
 func (suite *ServerTestSuite) TestRule() {
-	sql := `Create Stream test () WITH (DATASOURCE="../internal/server/rpc_test_data/test.json", FORMAT="JSON", type="file");`
+	// 本用例要验的是"规则起来之后处于触发中"以及随后的重启/停止链路。
+	// 早先这里用 type="file" 指向一个固定文件：file 源读完一次就 ingest EOF，
+	// 规则立刻被标成 triggered=false，而下面又在轮询等 triggered=true，
+	// 结果取决于 EOF 与轮询谁先到，于是时过时不过。
+	// 换成 simulator 源（用例里一直在产数据），规则稳定停在运行态。
+	sql := `Create Stream test () WITH (FORMAT="JSON", type="simulator");`
 	var reply string
 	err := suite.s.Stream(sql, &reply)
 	assert.Nil(suite.T(), err)
@@ -160,7 +165,7 @@ func (suite *ServerTestSuite) TestRule() {
 	reply = ""
 	err = suite.s.GetTopoRule(ruleId, &reply)
 	assert.Nil(suite.T(), err)
-	assert.Equal(suite.T(), "{\n  \"sources\": [\n    \"source_test\"\n  ],\n  \"edges\": {\n    \"op_2_decoder\": [\n      \"op_3_project\"\n    ],\n    \"op_3_project\": [\n      \"op_file_0_0_transform\"\n    ],\n    \"op_file_0_0_transform\": [\n      \"op_file_0_1_encode\"\n    ],\n    \"op_file_0_1_encode\": [\n      \"sink_file_0\"\n    ],\n    \"source_test\": [\n      \"op_2_decoder\"\n    ]\n  }\n}", reply)
+	assert.Equal(suite.T(), "{\n  \"sources\": [\n    \"source_test\"\n  ],\n  \"edges\": {\n    \"op_2_project\": [\n      \"op_file_0_0_transform\"\n    ],\n    \"op_file_0_0_transform\": [\n      \"op_file_0_1_encode\"\n    ],\n    \"op_file_0_1_encode\": [\n      \"sink_file_0\"\n    ],\n    \"source_test\": [\n      \"op_2_project\"\n    ]\n  }\n}", reply)
 
 	reply = ""
 	err = suite.s.StopRule(ruleId, &reply)
