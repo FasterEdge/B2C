@@ -170,8 +170,23 @@ jobs:
           type=ref,event=tag
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
+    - name: Check registry credentials
+      id: creds
+      env:
+        HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
+        HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+      run: |
+        # 本 fork 没有 docker.io 凭据。缺凭据时 docker/login-action 会直接
+        # "Username and password required" 失败, 连带整个 Build packages 变红,
+        # 发布包里连二进制都拿不到。这里先探测, 缺凭据就把推送降级为只构建。
+        if [ -n "$HUB_USER" ] && [ -n "$HUB_TOKEN" ]; then
+          echo "available=true" >> $GITHUB_OUTPUT
+        else
+          echo "available=false" >> $GITHUB_OUTPUT
+          echo "::warning::DOCKER_HUB_USER / DOCKER_HUB_TOKEN 未配置，跳过镜像推送，只构建并跑冒烟测试"
+        fi
     - uses: docker/login-action@v2
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' && steps.creds.outputs.available == 'true'
       with:
         username: ${{ secrets.DOCKER_HUB_USER }}
         password: ${{ secrets.DOCKER_HUB_TOKEN }}
@@ -181,7 +196,7 @@ jobs:
       with:
         context: .
         platforms: linux/amd64,linux/arm64,linux/arm/v7
-        push: ${{ github.event_name == 'release' }}
+        push: ${{ github.event_name == 'release' && steps.creds.outputs.available == 'true' }}
         tags: ${{ steps.meta.outputs.tags }}
         build-args: GO_VERSION=${{ matrix.golang }}
         labels: ${{ steps.meta.outputs.labels }}
@@ -347,8 +362,20 @@ jobs:
           type=ref,event=tag
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
+    - name: Check registry credentials
+      id: creds
+      env:
+        HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
+        HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+      run: |
+        if [ -n "$HUB_USER" ] && [ -n "$HUB_TOKEN" ]; then
+          echo "available=true" >> $GITHUB_OUTPUT
+        else
+          echo "available=false" >> $GITHUB_OUTPUT
+          echo "::warning::DOCKER_HUB_USER / DOCKER_HUB_TOKEN 未配置，跳过镜像推送"
+        fi
     - uses: docker/login-action@v2
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' && steps.creds.outputs.available == 'true'
       with:
         username: ${{ secrets.DOCKER_HUB_USER }}
         password: ${{ secrets.DOCKER_HUB_TOKEN }}
@@ -360,7 +387,7 @@ jobs:
       with:
         context: .
         platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/386
-        push: ${{ github.event_name == 'release' }}
+        push: ${{ github.event_name == 'release' && steps.creds.outputs.available == 'true' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         file: deploy/docker/Dockerfile-kubernetes-tool
@@ -393,34 +420,55 @@ jobs:
         cd _packages && for var in $( ls |grep -v sha256); do
           echo "$(cat $var.sha256) $var" | sha256sum -c || exit 1
         done
-    - uses: Rory-Z/upload-release-asset@v1
+    # 上游这里把产物发到 lf-edge/ekuiper 的 release 以及 packages.emqx 的 S3。
+    # 本 fork 两者都不存在: 没有那个仓库的写权限，也没有 S3/CloudFront/EMQX 凭据，
+    # 照原样跑必然失败，产物也不会落到本仓库的 release。改成挂到本仓库自己的
+    # release，同时把上游发布目标在缺凭据时明确跳过而不是判红。
+    - name: Collect release assets
+      run: |
+        set -eu
+        mkdir -p _dist
+        for f in _packages/kuiper*; do
+          case "$f" in *.sha256) continue;; esac
+          cp "$f" _dist/
+        done
+        if [ -d _plugins ]; then
+          tar czf "_dist/b2c-plugins-${GITHUB_REF_NAME}.tar.gz" -C _plugins .
+        fi
+        ls -l _dist
+    - name: Upload assets to this release
       if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v2
       with:
-        repo: ekuiper
-        path: "_packages/kuiper*"
-        token: ${{ secrets.GITHUB_TOKEN }}
-    - name: upload packages to s3
-      if: github.event_name == 'release'
+        tag_name: ${{ github.ref_name }}
+        files: _dist/*
+        fail_on_unmatched_files: false
+    - name: Publish to upstream targets when credentials exist
+      env:
+        AWS_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        EMQX_TOKEN: ${{ secrets.EMQX_IO_TOKEN }}
+        EMQX_API: ${{ secrets.EMQX_IO_RELEASE_API }}
       run: |
-        version=$(echo ${{ github.ref }} | sed -r  "s .*/.*/(.*) \1 g")
-        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        set -eu
+        missing=""
+        [ -z "${AWS_ID:-}" ] && missing="$missing AWS_ACCESS_KEY_ID"
+        [ -z "${AWS_KEY:-}" ] && missing="$missing AWS_SECRET_ACCESS_KEY"
+        [ -z "${EMQX_TOKEN:-}" ] && missing="$missing EMQX_IO_TOKEN"
+        [ -z "${EMQX_API:-}" ] && missing="$missing EMQX_IO_RELEASE_API"
+        if [ -n "$missing" ]; then
+          echo "::warning::未配置${missing}，跳过上游 S3 同步与 ekuiper.org 更新；产物已挂到本仓库 release"
+          exit 0
+        fi
+        version="${GITHUB_REF_NAME}"
+        aws configure set aws_access_key_id "$AWS_ID"
+        aws configure set aws_secret_access_key "$AWS_KEY"
         aws configure set default.region us-west-2
-        aws s3 rm --quiet --recursive s3://packages.emqx/kuiper/$version
-        aws s3 cp --quiet --recursive ./_packages s3://packages.emqx/kuiper/$version
-        aws s3 cp --quiet --recursive ./_plugins s3://packages.emqx/kuiper-plugins/$version
+        aws s3 rm --quiet --recursive "s3://packages.emqx/kuiper/$version"
+        aws s3 cp --quiet --recursive ./_packages "s3://packages.emqx/kuiper/$version"
+        aws s3 cp --quiet --recursive ./_plugins "s3://packages.emqx/kuiper-plugins/$version"
         aws cloudfront create-invalidation --distribution-id E170YEULGLT8XB --paths "/kuiper/$version/*,/kuiper-plugins/$version/*"
-    - name: update ekuiper.org
-      if: github.event_name == 'release'
-      run: |
-        set -e -x -u
-        curl -fvs -w %{http_code} \
-          --insecure \
-          -H "Content-Type: application/json" \
-          -H "token: ${{ secrets.EMQX_IO_TOKEN }}" \
-          -X POST \
-          -d "{\"repo\":\"lf-edge/ekuiper\", \"tag\": \"${{ github.ref_name }}\" }" \
-          ${{ secrets.EMQX_IO_RELEASE_API }}
+        curl -fvs -w '%{http_code}' --insecure           -H "Content-Type: application/json"           -H "token: $EMQX_TOKEN"           -X POST           -d "{\"repo\":\"lf-edge/ekuiper\", \"tag\": \"$version\" }"           "$EMQX_API"
     - uses: geekyeggo/delete-artifact@v5
       with:
         name: "*"
