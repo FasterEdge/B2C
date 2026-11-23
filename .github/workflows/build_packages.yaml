@@ -134,6 +134,16 @@ jobs:
       with:
         image: tonistiigi/binfmt:qemu-v9.2.2-52
         platforms: all
+    - name: Resolve version
+      id: ver
+      run: |
+        # .dockerignore 排除了 .git, 镜像内 git describe 不可用, 版本号必须从外部传入。
+        v="${GITHUB_REF_NAME#v}"
+        case "$v" in
+          [0-9]*.[0-9]*.[0-9]*) ;;
+          *) v="0.0.0-${GITHUB_SHA::7}" ;;
+        esac
+        echo "version=$v" >> $GITHUB_OUTPUT
     - name: Build single platform image
       uses: docker/build-push-action@v6
       with:
@@ -142,7 +152,9 @@ jobs:
         push: false
         load: true
         tags: docker.io/lfedge/ekuiper
-        build-args: GO_VERSION=${{ matrix.golang }}
+        build-args: |
+          GO_VERSION=${{ matrix.golang }}
+          B2C_VERSION=${{ steps.ver.outputs.version }}
         file: deploy/docker/Dockerfile${{ matrix.suffix }}
     - name: Test docker image
       run: |
@@ -198,7 +210,9 @@ jobs:
         platforms: linux/amd64,linux/arm64,linux/arm/v7
         push: ${{ github.event_name == 'release' && steps.creds.outputs.available == 'true' }}
         tags: ${{ steps.meta.outputs.tags }}
-        build-args: GO_VERSION=${{ matrix.golang }}
+        build-args: |
+          GO_VERSION=${{ matrix.golang }}
+          B2C_VERSION=${{ steps.ver.outputs.version }}
         labels: ${{ steps.meta.outputs.labels }}
         file: deploy/docker/Dockerfile${{ matrix.suffix }}
 

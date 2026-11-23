@@ -20,7 +20,10 @@ COPY . /go/kuiper
 
 WORKDIR /go/kuiper
 
-RUN sed -i -r "s|([ \t]*version=).*|\1'$(git describe --tags --always --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//g' | sed -E 's/^(.*)-([0-9]+)-.*$/\1/ ; s/^(.*)-([0-9]+)$/\1a\2/ ; s/^(.*)-[a-zA-Z]+\.([0-9]+)$/\1a\2/')',|1" sdk/python/setup.py
+# .dockerignore 排除了 .git, 容器里 git describe 必然失败, 版本号由外部传入;
+# 否则 sed 会把 version 改成空字符串, setuptools 直接拒绝构建 wheel。
+ARG B2C_VERSION=0.0.0
+RUN sed -i -r "s|([ \t]*version=).*|\1'${B2C_VERSION}',|1" sdk/python/setup.py
 RUN cat sdk/python/setup.py
 RUN make build_with_edgex_and_script
 

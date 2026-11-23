@@ -23,15 +23,18 @@ WORKDIR /go/kuiper
 RUN apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# 这个镜像不把产物拷进 /b2c，而是把 _build 下的版本目录符号链接过来，因此
+# KUIPER_HOME 必须指向该链接：原来 WORKDIR /b2c 是空目录，CMD 直接找不到
+# bin/b2cd（CI 冒烟测试里表现为 "exec: ./bin/b2cd: not found"）。
 RUN make build_with_edgex_and_script \
-    && ln -s /go/kuiper/_build/b2c-$(git describe --tags --always --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//g')-$(go env GOOS)-$(go env GOARCH) /kuiper
+    && ln -s /go/kuiper/_build/b2c-* /kuiper
 
 RUN ln -s /go/kuiper/deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 
 EXPOSE 9081 20498
 
 ENV MAINTAINER="b2c"
-ENV KUIPER_HOME="/b2c"
+ENV KUIPER_HOME="/kuiper"
 ENV KUIPER__BASIC__CONSOLELOG=true
 
 WORKDIR ${KUIPER_HOME}
