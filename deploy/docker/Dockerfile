@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG GO_VERSION=1.27.4
+ARG GO_VERSION=1.26.11
 FROM ghcr.io/lf-edge/ekuiper/base:$GO_VERSION-alpine AS builder
-# The base image pins GOTOOLCHAIN=local, but go.work and go.mod require go 1.27.0.
-# Let the go command fetch the matching toolchain instead of failing the build.
+# The base image pins GOTOOLCHAIN=local and ships go 1.26.11, but go.work and
+# go.mod require go 1.27.4. Let the go command fetch the matching toolchain
+# instead of failing the build; the base image tag itself must stay at
+# 1.26.11 because that is the newest tag the upstream project publishes.
 ENV GOTOOLCHAIN=auto
 
 COPY . /go/kuiper

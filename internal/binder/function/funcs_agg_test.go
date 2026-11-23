@@ -243,7 +243,7 @@ func TestPercentileExec(t *testing.T) {
 				},
 				[]interface{}{0.5, 0.5, 0.5},
 			},
-			pCont: float64(125),
+			pCont: float64(150),
 			pDisc: float64(150),
 		},
 		{ // 3
@@ -255,7 +255,7 @@ func TestPercentileExec(t *testing.T) {
 				},
 				[]interface{}{0.5, 0.5, 0.5},
 			},
-			pCont: float64(125),
+			pCont: float64(150),
 			pDisc: float64(150),
 		},
 		{ // 4
@@ -265,7 +265,7 @@ func TestPercentileExec(t *testing.T) {
 				},
 				[]interface{}{0.5, 0.5, 0.5},
 			},
-			pCont: float64(125),
+			pCont: float64(150),
 			pDisc: float64(150),
 		},
 		{ // 5
@@ -283,7 +283,7 @@ func TestPercentileExec(t *testing.T) {
 				},
 				[]interface{}{0.5, 0.5, 0.5},
 			},
-			pCont: float64(125),
+			pCont: float64(150),
 			pDisc: float64(150),
 		},
 	}

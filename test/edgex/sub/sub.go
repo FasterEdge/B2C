@@ -17,6 +17,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"os"
 
 	"github.com/edgexfoundry/go-mod-messaging/v4/messaging"
@@ -56,8 +58,7 @@ func subEventsFromMQTT(host string) {
 						return
 					case env := <-messages:
 						count++
-						r, _ := json.Marshal(env.Payload)
-						fmt.Printf("%s\n", r)
+						printPayload(env.Payload)
 						if count == 1 {
 							return
 						}
@@ -68,7 +69,22 @@ func subEventsFromMQTT(host string) {
 	}
 }
 
+// printPayload 只把消息体作为一段完整 JSON 输出。
+// JMeter 的 OS Process Sampler 会合并子进程的 stdout 与 stderr 作为响应体再做
+// JSONPath 断言, 所以除了这里, 任何其他输出都会破坏 JSON 的可解析性。
+func printPayload(payload any) {
+	b, err := json.Marshal(payload)
+	if err != nil {
+		conf.Log.Errorf("marshal payload error: %v", err)
+		return
+	}
+	fmt.Printf("%s\n", b)
+}
+
 func main() {
+	// go-mod-messaging 的 MQTT 客户端用标准库 log 打连接日志, 默认走 stderr,
+	// 被合并进 JMeter 响应体后会让 JSONPath 断言只看到 java.lang.String。
+	log.SetOutput(io.Discard)
 	if len(os.Args) == 3 {
 		if v := os.Args[1]; v == "mqtt" {
 			subEventsFromMQTT(os.Args[2])

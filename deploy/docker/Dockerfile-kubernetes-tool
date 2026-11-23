@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.27.4-alpine AS builder
+FROM golang:1.26.11-alpine AS builder
+# go.work 与各 go.mod 要求 go 1.27.x, 而镜像自带的工具链是 1.26.11。
+# 放开 GOTOOLCHAIN 让 go 命令按需下载匹配的工具链, 否则直接报版本不足。
+ENV GOTOOLCHAIN=auto
 
 COPY . /go/kuiper
 

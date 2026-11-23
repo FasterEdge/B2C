@@ -231,6 +231,11 @@ Returns the percentile value based on a continuous distribution of expression in
 argument is the column as the key to percentile. The second argument is the percentile of the value that you want to
 find. The percentile must be a constant between 0.0 and 1.0.
 
+The interpolation follows the linear interpolation between closest ranks definition (Hyndman & Fan type 7), which is the
+one used by Excel `PERCENTILE.INC`, NumPy and R. For a sorted group of `n` values and percentile `p`, the rank is
+`p * (n - 1)` and the result is interpolated between the two neighbouring values. For example, the median of
+`[100, 150, 200]` is `150`, not `125`, and the 90th percentile of `[10, 20]` is `19`.
+
 ## PERCENTILE_DISC
 
 ```text

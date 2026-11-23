@@ -89,7 +89,7 @@ require (
 	github.com/vertica/vertica-sql-go v1.3.9
 	github.com/x448/float16 v0.8.4
 	github.com/xo/dburl v0.58.0
-	github.com/yalue/onnxruntime_go v1.38.0
+	github.com/yalue/onnxruntime_go v1.9.0
 	github.com/yisaer/file-rotatelogs v0.0.0-20240926070915-3a4d03835c68
 	github.com/ziutek/mymysql v1.5.4
 	go.nanomsg.org/mangos/v3 v3.6.0

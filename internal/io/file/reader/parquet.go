@@ -70,9 +70,13 @@ func (pr *ParquetReader) Read(_ api.StreamContext) (any, error) {
 			pr.rowsReader = group.Rows()
 		}
 
-		_, err := pr.rowsReader.ReadRows(row[:])
-		switch {
-		case errors.Is(err, io.EOF):
+		// ReadRows 可能在一个批次里既返回行又返回 io.EOF: 文件末尾那一行之后
+		// 就报 EOF。只有返回 0 行才表示本行组读完, 否则会丢掉每组最后一行。
+		n, err := pr.rowsReader.ReadRows(row[:])
+		if n == 0 {
+			if err != nil && !errors.Is(err, io.EOF) {
+				return nil, err
+			}
 			pr.curGroup++
 			err = pr.rowsReader.Close()
 			pr.rowsReader = nil
@@ -80,8 +84,6 @@ func (pr *ParquetReader) Read(_ api.StreamContext) (any, error) {
 				return nil, err
 			}
 			continue
-		case err != nil:
-			return nil, err
 		}
 
 		m := make(map[string]any)

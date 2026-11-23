@@ -15,10 +15,14 @@
 package main
 
 import (
+	"bytes"
+	"image"
+	_ "image/png"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	kctx "github.com/lf-edge/ekuiper/v2/internal/topo/context"
 	mockContext "github.com/lf-edge/ekuiper/v2/pkg/mock/context"
@@ -84,11 +88,37 @@ func TestResize(t *testing.T) {
 				if tt.r != nil {
 					assert.Equal(t, tt.r, result)
 				} else {
-					assert.Equal(t, resized, result)
+					// 比较解码后的像素而不是 PNG 字节: Go 标准库的编码器在不同
+					// Go 版本间会改变压缩策略, 字节数变化不代表结果变了。
+					assertSameImage(t, resized, result.([]byte))
 				}
 			} else {
 				assert.EqualError(t, result.(error), tt.e)
 			}
 		})
 	}
+}
+
+// assertSameImage 断言两段 PNG 解码后尺寸与像素完全一致。
+func assertSameImage(t *testing.T, expected, actual []byte) {
+	t.Helper()
+	expImg, _, err := image.Decode(bytes.NewReader(expected))
+	require.NoError(t, err)
+	actImg, _, err := image.Decode(bytes.NewReader(actual))
+	require.NoError(t, err)
+	require.Equal(t, expImg.Bounds(), actImg.Bounds())
+	require.Equal(t, pixelData(expImg), pixelData(actImg), "resized image pixels differ from resized.png")
+}
+
+// pixelData 把图像按 RGBA 展开成字节流, 方便逐像素比较。
+func pixelData(img image.Image) []byte {
+	b := img.Bounds()
+	out := make([]byte, 0, b.Dx()*b.Dy()*4)
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			r, g, bb, a := img.At(x, y).RGBA()
+			out = append(out, byte(r>>8), byte(g>>8), byte(bb>>8), byte(a>>8))
+		}
+	}
+	return out
 }

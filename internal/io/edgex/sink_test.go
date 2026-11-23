@@ -35,8 +35,24 @@ var (
 	ctx           = context.WithValue(context.Background(), context.LoggerKey, contextLogger)
 )
 
+// tagsEqual 比较两个 Tags: nil 与空 map 语义相同, 都由 SDK 序列化为 JSON null/{}。
+func tagsEqual(expected, actual map[string]interface{}) bool {
+	if len(expected) == 0 && len(actual) == 0 {
+		return true
+	}
+	return reflect.DeepEqual(expected, actual)
+}
+
+// apiVersionEqual 允许期望值留空, 此时任何 apiVersion(如 SDK 默认的 v4)都算匹配。
+func apiVersionEqual(expected, actual string) bool {
+	return expected == actual || expected == ""
+}
+
 func compareEvent(expected, actual *dtos.Event) bool {
-	if (expected.Id == actual.Id || (expected.Id == "" && actual.Id != "")) && expected.ProfileName == actual.ProfileName && expected.DeviceName == actual.DeviceName && (expected.Origin == actual.Origin || (expected.Origin == 0 && actual.Origin > 0)) && reflect.DeepEqual(expected.Tags, actual.Tags) && expected.SourceName == actual.SourceName && len(expected.Readings) == len(actual.Readings) {
+	if !apiVersionEqual(expected.ApiVersion, actual.ApiVersion) {
+		return false
+	}
+	if (expected.Id == actual.Id || (expected.Id == "" && actual.Id != "")) && expected.ProfileName == actual.ProfileName && expected.DeviceName == actual.DeviceName && (expected.Origin == actual.Origin || (expected.Origin == 0 && actual.Origin > 0)) && tagsEqual(expected.Tags, actual.Tags) && tagsEqual(expected.Extensions, actual.Extensions) && expected.SourceName == actual.SourceName && len(expected.Readings) == len(actual.Readings) {
 		for _, r := range expected.Readings {
 			compared := false
 			for _, a := range actual.Readings {
@@ -57,7 +73,7 @@ func compareEvent(expected, actual *dtos.Event) bool {
 }
 
 func compareReading(expected, actual dtos.BaseReading) bool {
-	if (expected.Id == actual.Id || (expected.Id == "" && actual.Id != "")) && expected.ProfileName == actual.ProfileName && expected.DeviceName == actual.DeviceName && (expected.Origin == actual.Origin || (expected.Origin == 0 && actual.Origin > 0)) && expected.ResourceName == actual.ResourceName && expected.Value == actual.Value && expected.ValueType == actual.ValueType {
+	if (expected.Id == actual.Id || (expected.Id == "" && actual.Id != "")) && expected.ProfileName == actual.ProfileName && expected.DeviceName == actual.DeviceName && (expected.Origin == actual.Origin || (expected.Origin == 0 && actual.Origin > 0)) && expected.ResourceName == actual.ResourceName && expected.Value == actual.Value && expected.ValueType == actual.ValueType && tagsEqual(expected.Tags, actual.Tags) && tagsEqual(expected.Extensions, actual.Extensions) {
 		if expected.ValueType == v4.ValueTypeObject {
 			if !reflect.DeepEqual(expected.ObjectValue, actual.ObjectValue) {
 				return false
@@ -333,7 +349,7 @@ func TestProduceEvents(t1 *testing.T) {
 					},
 					{
 						ResourceName:  "sa",
-						SimpleReading: dtos.SimpleReading{Value: "[1, 2, 3, 4]"},
+						SimpleReading: dtos.SimpleReading{Value: "[\"1\",\"2\",\"3\",\"4\"]"},
 						DeviceName:    "ekuiper",
 						ProfileName:   "ekuiperProfile",
 						ValueType:     v4.ValueTypeStringArray,
@@ -716,7 +732,7 @@ func TestReadingTypes(t *testing.T) {
 						DeviceName:    "ekuiper",
 						ProfileName:   "ekuiperProfile",
 						ValueType:     v4.ValueTypeStringArray,
-						SimpleReading: dtos.SimpleReading{Value: "[test]"},
+						SimpleReading: dtos.SimpleReading{Value: "[\"test\"]"},
 					},
 				},
 			},
@@ -971,7 +987,7 @@ func TestReadingTypes(t *testing.T) {
 						DeviceName:    "ekuiper",
 						ProfileName:   "ekuiperProfile",
 						ValueType:     v4.ValueTypeStringArray,
-						SimpleReading: dtos.SimpleReading{Value: "[test]"},
+						SimpleReading: dtos.SimpleReading{Value: "[\"test\"]"},
 					},
 				},
 			},
