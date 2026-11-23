@@ -130,6 +130,7 @@ func TestConStatus(t *testing.T) {
 	require.NoError(t, err)
 	err = sock.Listen("ipc:///tmp/testconstatus.ipc")
 	require.NoError(t, err)
+	defer sock.Close()
 	retry = 10
 	for i := 0; i < retry; i++ {
 		time.Sleep(100 * time.Millisecond)
@@ -152,17 +153,13 @@ func TestSend(t *testing.T) {
 		"url": "ipc:///tmp/testsend.ipc",
 	})
 	require.NoError(t, err)
-	// let the connection ready after 100 ms
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		sock, err := pair.NewSocket()
-		require.NoError(t, err)
-		err = sock.Listen("ipc:///tmp/testsend.ipc")
-		require.NoError(t, err)
-	}()
-	err = c.Dial(ctx)
+	// 监听端必须在 Dial 之前就绪，并一直持有到用例结束：它一旦被回收，
+	// pair 连接会跟着断开，Send 就会误报“连接未建立”。
+	listener, err := pair.NewSocket()
 	require.NoError(t, err)
+	require.NoError(t, listener.Listen("ipc:///tmp/testsend.ipc"))
+	defer listener.Close()
+	require.NoError(t, c.Dial(ctx))
 	defer c.Close(ctx)
-	err = c.Send(ctx, []byte("test"))
-	require.NoError(t, err)
+	require.NoError(t, c.Send(ctx, []byte("test")))
 }

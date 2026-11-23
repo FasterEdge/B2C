@@ -98,16 +98,18 @@ func (s *Sock) Provision(ctx api.StreamContext, conId string, props map[string]a
 	sock.SetPipeEventHook(func(ev mangos.PipeEvent, p mangos.Pipe) {
 		switch ev {
 		case mangos.PipeEventAttached:
-			once.Do(func() {
-				ctx.GetLogger().Infof("nng connection is ready")
-				close(s.ready)
-			})
 			s.connected.Store(true)
 			s.status.Store(modules.ConnectionStatus{Status: api.ConnectionConnected})
 			if s.scHandler != nil {
 				s.scHandler(api.ConnectionConnected, "")
 			}
 			ctx.GetLogger().Infof("nng connection attached")
+			// 先落状态再放行 Dial：close(s.ready) 是释放动作，被唤醒的一方
+			// 必须已经能看到 connected 为 true，否则其后的 Send 会误报连接未建立。
+			once.Do(func() {
+				ctx.GetLogger().Infof("nng connection is ready")
+				close(s.ready)
+			})
 		case mangos.PipeEventAttaching:
 			s.status.Store(modules.ConnectionStatus{Status: api.ConnectionConnecting})
 			if s.scHandler != nil {
