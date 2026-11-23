@@ -28,12 +28,13 @@ pre(){
     mkdir -p _plugins/$OS/$PLUGIN_TYPE
 }
 
-# 插件是 buildmode=plugin, 即动态链接(external linking)构建。Go 1.27 的汇编器在
-# dynlink 下会拒绝"跨全局符号访问使用 R15"的汇编, 而 pierrec/lz4/v4 (经 trino 驱动
-# 被 sql sink 与 kafka 插件带入) 的 decode_amd64.s 正是这种写法, 于是插件构建直接
-# 失败在 "asm: assembly failed"。该写法在 4.1.30~4.1.34 之间没有变化, 靠升依赖解决
-# 不了, 而 4.1.23~4.1.29 又被上游标记为 retracted(有丢数据缺陷), 不能降。
-# 因此插件构建统一带 noasm: lz4 与 xxh32 回退到纯 Go 解码器, 只是慢一些, 语义不变。
+# 插件是 buildmode=plugin, 即动态链接(external linking)构建, 与主程序的链接模式
+# 不同。主程序用 noasm 编出来的 lz4/klauspost-compress 是纯 Go 版本, 插件若用汇编
+# 版本, plugin.Open 会报 "plugin was built with a different version of package
+# ..."; 反过来主程序若用汇编版本, 插件构建会直接死在 Go 1.27 汇编器的 dynlink
+# 检查上(pierrec/lz4/v4 的 decode_amd64.s 在跨全局符号访问后用 R15)。该写法在
+# 4.1.30~4.1.34 之间没变, 升依赖无用, 4.1.23~4.1.29 又被上游标为 retracted, 不能降。
+# 结论: 主程序与插件统一带 noasm, 汇编解码器整体回退到纯 Go 实现, 语义不变。
 PLUGIN_TAGS="noasm"
 
 post(){

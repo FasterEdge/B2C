@@ -54,24 +54,24 @@ pkg_without_edgex: build_without_edgex
 
 .PHONY: build_with_edgex
 build_with_edgex: build_prepare
-	GO111MODULE=on CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "edgex include_nats_messaging $(EXTRA_TAGS)" -o b2c cmd/kuiper/main.go
-	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "edgex include_nats_messaging $(EXTRA_TAGS)" -o b2cd cmd/kuiperd/main.go
+	GO111MODULE=on CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "edgex include_nats_messaging $(EXTRA_TAGS) noasm" -o b2c cmd/kuiper/main.go
+	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "edgex include_nats_messaging $(EXTRA_TAGS) noasm" -o b2cd cmd/kuiperd/main.go
 	@if [ "$$(uname -s)" = "Linux" ] && [ ! -z $$(which upx) ]; then upx ./b2c; upx ./b2cd; fi
 	@mv ./b2c ./b2cd $(BUILD_PATH)/$(PACKAGE_NAME)/bin
 	@echo "Build successfully"
 
 .PHONY: build_with_edgex_and_script
 build_with_edgex_and_script: build_prepare
-	GO111MODULE=on CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "edgex include_nats_messaging $(EXTRA_TAGS)" -o b2c cmd/kuiper/main.go
-	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "edgex include_nats_messaging script $(EXTRA_TAGS)" -o b2cd cmd/kuiperd/main.go
+	GO111MODULE=on CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "edgex include_nats_messaging $(EXTRA_TAGS) noasm" -o b2c cmd/kuiper/main.go
+	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "edgex include_nats_messaging script $(EXTRA_TAGS) noasm" -o b2cd cmd/kuiperd/main.go
 	@if [ "$$(uname -s)" = "Linux" ] && [ ! -z $$(which upx) ]; then upx ./b2c; upx ./b2cd; fi
 	@mv ./b2c ./b2cd $(BUILD_PATH)/$(PACKAGE_NAME)/bin
 	@echo "Build successfully"
 
 .PHONY: build_with_cover
 build_with_cover: build_prepare
-	GO111MODULE=on CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "edgex include_nats_messaging $(EXTRA_TAGS)" -o b2c cmd/kuiper/main.go
-	GO111MODULE=on CGO_ENABLED=1 go build -trimpath --cover -covermode=atomic -coverpkg=./... -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "full edgex include_nats_messaging $(EXTRA_TAGS)" -o b2cd cmd/kuiperd/main.go
+	GO111MODULE=on CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "edgex include_nats_messaging $(EXTRA_TAGS) noasm" -o b2c cmd/kuiper/main.go
+	GO111MODULE=on CGO_ENABLED=1 go build -trimpath --cover -covermode=atomic -coverpkg=./... -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "full edgex include_nats_messaging $(EXTRA_TAGS) noasm" -o b2cd cmd/kuiperd/main.go
 	@if [ "$$(uname -s)" = "Linux" ] && [ ! -z $$(which upx) ]; then upx ./b2c; upx ./b2cd; fi
 	@mv ./b2c ./b2cd $(BUILD_PATH)/$(PACKAGE_NAME)/bin
 	@echo "Build successfully"
@@ -82,8 +82,8 @@ pkg_with_edgex: build_with_edgex
 
 .PHONY: build_with_fdb
 build_with_fdb: build_prepare
-	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "fdb" -o b2c cmd/kuiper/main.go
-	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "fdb" -o b2cd cmd/kuiperd/main.go
+	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "fdb noasm" -o b2c cmd/kuiper/main.go
+	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "fdb noasm" -o b2cd cmd/kuiperd/main.go
 	@if [ "$$(uname -s)" = "Linux" ] && [ ! -z $$(which upx) ]; then upx ./b2c; upx ./b2cd; fi
 	@mv ./b2c ./b2cd $(BUILD_PATH)/$(PACKAGE_NAME)/bin
 	@echo "Build successfully"
@@ -94,8 +94,8 @@ pkg_with_fdb: build_with_fdb
 
 .PHONY: build_with_pebble
 build_with_pebble: build_prepare
-	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "pebble" -o b2c cmd/kuiper/main.go
-	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "pebble" -o b2cd cmd/kuiperd/main.go
+	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "pebble noasm" -o b2c cmd/kuiper/main.go
+	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "pebble noasm" -o b2cd cmd/kuiperd/main.go
 	@if [ "$$(uname -s)" = "Linux" ] && [ ! -z $$(which upx) ]; then upx ./b2c; upx ./b2cd; fi
 	@mv ./b2c ./b2cd $(BUILD_PATH)/$(PACKAGE_NAME)/bin
 	@echo "Build successfully"
@@ -106,7 +106,7 @@ pkg_with_pebble: build_with_pebble
 
 .PHONY: build_core
 build_core: build_prepare
-	GO111MODULE=on CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "core $(EXTRA_TAGS)" -o b2cd cmd/kuiperd/main.go
+	GO111MODULE=on CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "core $(EXTRA_TAGS) noasm" -o b2cd cmd/kuiperd/main.go
 	@if [ "$$(uname -s)" = "Linux" ] && [ ! -z $$(which upx) ]; then upx ./kuiperd; fi
 	@mv ./b2cd $(BUILD_PATH)/$(PACKAGE_NAME)/bin
 	@echo "Build successfully"
@@ -129,7 +129,7 @@ PLUGINS_IN_FULL := \
 build_full: SHELL:=/bin/bash -euo pipefail
 build_full: build_prepare
 	GO111MODULE=on CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -o b2c cmd/kuiper/main.go
-	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "full include_nats_messaging" -o b2cd cmd/kuiperd/main.go
+	GO111MODULE=on CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/lf-edge/ekuiper/v2/cmd.Version=$(VERSION) -X github.com/lf-edge/ekuiper/v2/cmd.LoadFileType=relative" -tags "full include_nats_messaging noasm" -o b2cd cmd/kuiperd/main.go
 	@if [ "$$(uname -s)" = "Linux" ] && [ ! -z $$(which upx) ]; then upx ./b2c; upx ./b2cd; fi
 	@mv ./b2c ./b2cd $(BUILD_PATH)/$(PACKAGE_NAME)/bin
 	@while read plugin; do \
