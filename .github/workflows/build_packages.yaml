@@ -202,8 +202,11 @@ jobs:
       with:
         username: ${{ secrets.DOCKER_HUB_USER }}
         password: ${{ secrets.DOCKER_HUB_TOKEN }}
+    # 这一层只为推送多架构镜像存在。没有推送凭据时它仍会跨 amd64/arm64/armv7
+    # 完整编一遍再丢掉产物，单次能跑掉一小时以上，所以只在真要推送时才执行；
+    # 单平台构建 + 冒烟测试在上面已经做过，验收不打折。
     - name: Build multi platform image
-      if: contains(fromJSON('["release", "workflow_dispatch"]'), github.event_name)
+      if: contains(fromJSON('["release", "workflow_dispatch"]'), github.event_name) && steps.creds.outputs.available == 'true'
       uses: docker/build-push-action@v6
       with:
         context: .
@@ -396,12 +399,15 @@ jobs:
     - name: Update version for setup.py
       if: github.event_name == 'release'
       run: sed -i -r "s|([ \t]*version=).*|\1'${GITHUB_REF#refs/tags/}',|1" sdk/python/setup.py
+    # 同 build-docker-images: 无推送凭据时跳过跨架构构建，只保留上面的单平台
+    # 构建与启动测试。
     - name: Build multi platform image
+      if: steps.creds.outputs.available == 'true'
       uses: docker/build-push-action@v6
       with:
         context: .
         platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/386
-        push: ${{ github.event_name == 'release' && steps.creds.outputs.available == 'true' }}
+        push: ${{ github.event_name == 'release' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         file: deploy/docker/Dockerfile-kubernetes-tool
