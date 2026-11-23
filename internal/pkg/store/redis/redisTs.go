@@ -79,7 +79,17 @@ func (t *ts) Set(key int64, value interface{}) (bool, error) {
 }
 
 func (t *ts) Get(key int64, value interface{}) (bool, error) {
-	reply, _ := t.db.ZRevRangeByScore(context.Background(), t.key, &redis.ZRangeBy{Min: strconv.FormatInt(key, 10), Max: strconv.FormatInt(key, 10)}).Result()
+	// ZRevRangeByScore 已废弃(SA1019): go-redis v9 推荐用 ZRangeArgs 表达
+	// 同样的"按分数范围 + 倒序"查询。语义等价: Rev=true + ByScore=true,
+	// Min/Max 都是同一个分值, 即只取该分数下的成员。
+	score := strconv.FormatInt(key, 10)
+	reply, _ := t.db.ZRangeArgs(context.Background(), redis.ZRangeArgs{
+		Key:     t.key,
+		Start:   score,
+		Stop:    score,
+		ByScore: true,
+		Rev:     true,
+	}).Result()
 	if len(reply) == 0 {
 		return false, fmt.Errorf("record under %s key and %d score not found", t.key, key)
 	}

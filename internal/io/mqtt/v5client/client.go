@@ -73,9 +73,11 @@ func Provision(ctx api.StreamContext, props map[string]any, onConnect client.Con
 	cliCfg := autopaho.ClientConfig{
 		ServerUrls: []*url.URL{cc.serverUrl},
 		TlsCfg:     cc.tls,
-		// TODO backoff?
-		ConnectRetryDelay: time.Second,
-		KeepAlive:         20, // Keepalive message should be sent every 20 seconds
+		// 重连退避: 固定 1s(与原先 ConnectRetryDelay: time.Second 行为一致)。
+		// ConnectRetryDelay 已废弃, autopaho 内部会把它转成等价的 ConstantBackoff,
+		// 这里直接用新 API 表达同一语义, 避免 SA1019。
+		ReconnectBackoff: autopaho.NewConstantBackoff(time.Second),
+		KeepAlive:        20, // Keepalive message should be sent every 20 seconds
 		// CleanStartOnInitialConnection defaults to false. Setting this to true will clear the session on the first connection.
 		CleanStartOnInitialConnection: !cc.EnableClientSession,
 		// SessionExpiryInterval - Seconds that a session will survive after disconnection.
